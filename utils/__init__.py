@@ -8,6 +8,7 @@ import pandas as pd
 
 # Constants
 
+# For each page, the DataFrame columns that should be date data type
 DATE_COLS = {
     'AE': {
         'Date Received': 'Received'
@@ -25,6 +26,7 @@ DATE_COLS = {
         'Completed Date': 'Closed'
     }
 }
+# Approximate logo color for each Rad product
 PROD_COLORS = {
     'AutoContour': '#f2b740',
     'ClearCalc': '#4286f4',
@@ -37,11 +39,11 @@ PROD_COLORS = {
     'RadMachine-Diagnostic': '#12502c',
     'RadMonteCarlo': '#0099e1',
     'RadOrthanc': '#2a82bd',
-    'N/A': '#a0a0a0'
+    'N/A': '#a0a0a0'  # E.g., website-related
 }
-RAD_COLOR = '#3498db'
-RAD_DATE = '2016-10-26'
-ALL_PERIODS = {
+RAD_COLOR = '#3498db'  # Rad logo color
+RAD_DATE = '2016-10-26'  # Rad incorporation date
+ALL_PERIODS = {  # All months and quarters since Rad incorporation
     'Month': pd.period_range(start=RAD_DATE, end=datetime.now().strftime('%Y-%m'), freq='M'),
     'Quarter': pd.period_range(start=RAD_DATE, end=datetime.now().strftime('%Y-%m'), freq='Q')
 }
@@ -50,7 +52,7 @@ ALL_PERIODS = {
 # Functions
 
 def add_period_cols(df, cols=None):
-    """Adds columns for the month and quarter  in which the date value lies.
+    """Adds columns for the month and quarter in which the date value lies.
 
     Parameters:
         df (pd.DataFrame): `DataFrame` to add the columns to
