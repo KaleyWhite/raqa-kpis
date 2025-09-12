@@ -5,12 +5,15 @@ from simple_salesforce import Salesforce
 import streamlit as st
 
 
-sf = Salesforce(
-    username=st.secrets['SF_USER'],
-    password=st.secrets['SF_PWD'],
-    security_token=st.secrets['SF_TOKEN'],
-    instance='radformation.my.salesforce.com'
-)
+try:
+    sf = Salesforce(
+        username=st.secrets['SF_USER'],
+        password=st.secrets['SF_PWD'],
+        security_token=st.secrets['SF_TOKEN'],
+        instance='radformation.my.salesforce.com'
+    )
+except:
+    sf = None
     
     
 def get_sf_records(obj, flds=None):
@@ -32,13 +35,16 @@ def get_sf_records(obj, flds=None):
         flds (Optional[List[str]]): A list of field names to retrieve. If `None`, all fields are fetched.
 
     Returns:
-        pd.DataFrame: A `DataFrame` containing the queried records with human-readable column names.
+        Optional[pd.DataFrame]: A `DataFrame` containing the queried records with human-readable column names,
+        or `None` if could not connect to Salesforce.
     """
     def human_friendly(key):
         no_custom_suffix = re.sub(r'__c$', r'', key)
         no_underscores = re.sub(r'_+', r' ', no_custom_suffix)
         no_camel_case = re.sub(r'([a-z])([A-Z])', r'\g<1> \g<2>', no_underscores)
         return no_camel_case
+    if sf is None:
+        return
     if flds is None:
         res = sf.query_all(f'SELECT FIELDS(ALL) FROM {obj} LIMIT 1')
         flds = [k for k in res['records'][0] if k != 'attributes']
