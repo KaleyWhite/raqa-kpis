@@ -1,18 +1,17 @@
 import streamlit as st
 
-st.set_page_config(page_title='RA/QA KPIs', layout='wide')
-
 from pages.Audits import compute_audit_commitment
 from pages.CAPAs import compute_capa_commitment
 from pages.Complaints import compute_complaint_commitment
 from pages.Training import compute_training_commitment
 
-from utils import RAD_COLOR, display_error
+from utils import RAD_COLOR, display_error, init_page
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar
 from utils.text_fmt import items_in_a_series
 
 
+init_page('RA/QA KPIs')
 PAGE_NAME = 'main'
     
 
