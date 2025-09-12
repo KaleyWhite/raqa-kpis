@@ -5,7 +5,7 @@ from pages.CAPAs import compute_capa_commitment
 from pages.Complaints import compute_complaint_commitment
 from pages.Training import compute_training_commitment
 
-from utils import RAD_COLOR, display_error, init_page
+from utils import RAD_COLOR, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar
 from utils.text_fmt import items_in_a_series
@@ -35,8 +35,8 @@ def compute_commitment(interval='Month'):
                         Defaults to 'Month'.
 
     Returns:
-        Optional[pd.Series]: The overall commitment score for each time period,
-        or `None` if the requsite source data could not be retrieved.
+        Union[pd.Series, str]: The overall commitment score for each time period,
+                               or an error message if the requsite source data could not be retrieved.
     """
     commitments = {
         'audit': compute_audit_commitment(interval, False),
@@ -46,8 +46,7 @@ def compute_commitment(interval='Month'):
     }
     no_data_for = sorted(record_type for record_type, data in commitments.items() if data is None)
     if no_data_for:
-        display_error('Cannot compute commitment because ' + items_in_a_series(no_data_for) + ' data could not be retrieved.')
-        return
+        return 'Cannot compute commitment because ' + items_in_a_series(no_data_for) + ' data could not be retrieved.'
     return commitments['complaint'] * 0.35 + commitments['CAPA'] * 0.25 + commitments['training'] * 0.2 + commitments['audit'] * 0.2
 
 
@@ -55,15 +54,15 @@ if __name__ == '__main__':
     st.title('RA/QA KPIs')
     interval = render_interval_filter(PAGE_NAME)
     start, end = render_period_filter(PAGE_NAME, interval)
-    
+    commitment = compute_commitment(interval)
+    show_data_srcs(error_msg=commitment if isinstance(commitment, str) else None)
     st.markdown('''
                 Select a page from the sidebar to begin.
                 
                 **Note:** Do not fear long load times, for we have mounds and mounds of data!
                 ''')
 
-    commitment = compute_commitment(interval)
-    if commitment is not None:
+    if not isinstance(commitment, str):
         plot = plot_bar(
             PAGE_NAME,
             commitment,
