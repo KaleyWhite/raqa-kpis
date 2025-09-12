@@ -1,15 +1,21 @@
 from datetime import datetime
+import os
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from utils import PROD_COLORS, RAD_COLOR
+from utils import ALL_PERIODS, PROD_COLORS, RAD_COLOR, display_error, init_page
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar
 from utils.read_data import read_training
 from utils.text_fmt import period_str
+
+
+init_page('QMS Training')
+PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
 @st.cache_data
@@ -32,13 +38,13 @@ def get_training_by_qtr(df_training_mo):
     df_training_by_qtr = df_training_mo.copy()
     group = (df_training_by_qtr['Quarter'] != df_training_by_qtr['Quarter'].shift()) | (df_training_by_qtr['User'] != df_training_by_qtr['User'].shift())
     df_training_by_qtr['GroupID'] = group.cumsum()
-    df_training_by_qtr = df_training_by_qtr.groupby(['GroupID', 'Quarter', 'User'], as_index=False).sum(numeric_only=True).drop(columns='GroupID')  
-    
+    df_training_by_qtr = df_training_by_qtr.groupby(['GroupID', 'Quarter', 'User'], as_index=False)[[col for col in df_training_by_qtr.columns if col not in ['Month', 'Quarter']]].sum().drop(columns='GroupID')  
+
     return df_training_by_qtr
 
 
 @st.cache_data
-def compute_training_commitment():
+def compute_training_commitment(min_period=None, max_period=None):
     """
     Computes the percentage of trainings completed on time for each interval (Month and Quarter).
 
@@ -46,16 +52,26 @@ def compute_training_commitment():
     - Aggregates the number of trainings completed and completed on time.
     - Calculates the percentage of trainings completed on time.
     - Reindexes the result to cover the full range from `min_period` to `max_period`, filling missing values with 0.
+    
+    Parameters:
+        min_period (Optional[pd.Period]): Minimum date (month or quarter) to compute training commitment for
+            If not provided, uses Rad incorporation date
+        max_period (Optional[pd.Period]): Maximum date (month or quarter) to compute training commitment for
+            If not provided, uses today's date    
 
     Returns:
-        dict: A dictionary with interval names ('Month', 'Quarter') as keys and corresponding
-              pandas Series of "% Trainings Completed on Time" as values, indexed by period.
+        Optional[dict]: A dictionary with interval names ('Month', 'Quarter') as keys and corresponding
+            pandas Series of "% Trainings Completed on Time" as values, indexed by period.
+            Returns `None` if training data ws not retrieved.
     """
+    if isinstance(dfs_training, str):
+        return
     commitment = {}
     for interval_ in ['Month', 'Quarter']:
+        periods = ALL_PERIODS[interval_] if min_period is None else pd.period_range(start=min_period, end=max_period, freq=interval_[0])
         df_training_grouped = dfs_training[interval_].groupby(interval_, as_index=False)[[col for col in dfs_training[interval_].columns if col not in ['Month', 'Quarter']]].sum()
         df_training_grouped['% Trainings Completed on Time'] = df_training_grouped['# Trainings Completed on Time'] / df_training_grouped['# Trainings Completed'].replace(0, np.nan) * 100
-        df_training_grouped = pd.DataFrame({interval: pd.period_range(start=min_period, end=max_period, freq=interval[0])}).merge(df_training_grouped, on=interval_, how='left').set_index(interval_).fillna(0)
+        df_training_grouped = pd.DataFrame({interval_: periods}).merge(df_training_grouped, on=interval_, how='left').set_index(interval_).fillna(0)
         commitment[interval_] = df_training_grouped['% Trainings Completed on Time']
     return commitment
     
@@ -64,7 +80,7 @@ def plot_training_completion():
     """
     Plots a histogram of employees' training completion percentages for the current period.
 
-    The function checks whether any training records exist for the current period (`max_period`)
+    The function checks whether any training records exist for the current period
     within the user-selected `interval` ('Month' or 'Quarter'). If records are present, it generates
     a histogram showing the distribution of `% Training Complete` across employees.
 
@@ -78,9 +94,9 @@ def plot_training_completion():
     Returns:
         None
     """
-    curr_period_training = dfs_training[interval][dfs_training[interval][interval] == max_period]
+    curr_period_training = dfs_training[interval][dfs_training[interval][interval] == ALL_PERIODS[interval][-1]]
     if len(curr_period_training) == 0:
-        st.write('No training was assigned for this ' + interval.lower() + '.')
+        st.write('No training was assigned for this ' + interval.lower() + ', so cannot plot training completion.')
         return
     fig, ax = plt.subplots()
     ax.grid(axis='y', alpha=0.7, zorder=1)
@@ -96,36 +112,39 @@ def plot_training_completion():
      
      
 df_training_mo = read_training()
-dfs_training = {'Month': df_training_mo, 'Quarter': get_training_by_qtr(df_training_mo)}
+dfs_training = None
+if isinstance(df_training_mo, pd.DataFrame):
+    dfs_training = {'Month': df_training_mo, 'Quarter': get_training_by_qtr(df_training_mo)}
 
 
 if __name__ == '__main__':
     st.title('QMS Training')
     st.markdown('**Note**: This is dummy data! REAL QMS training stats will be provided once we roll out QMS training in Matrix!')
 
-    interval = render_interval_filter()
-    training_commitment_percentage = compute_training_commitment()
-    min_period = df_training_mo[interval].min()
-    max_period = pd.to_datetime('today').to_period(interval[0])
-    render_period_filter(min_period)
-    start = st.session_state.get('start_period')
-    end = st.session_state.get('end_period')
+    if dfs_training is None:
+        display_error(df_training_mo)
+    else:
+        interval = render_interval_filter(PAGE_NAME)
+        training_commitment_percentage = compute_training_commitment()
+        min_period = df_training_mo[interval].min()
+        start, end = render_period_filter(PAGE_NAME, interval, min_period)
 
-    plot = plot_bar(
-        compute_training_commitment()[interval],
-        interval=interval,
-        start=start,
-        end=end, 
-        no_data_msg='No training was completed ' + ('during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
-        bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'},
-        tol_lower=80,
-        min_period=min_period, 
-        min_period_msg=' as Rad did not implement the current QMS training process until partway through the ' + interval.lower(), 
-        is_pct=True,
-        title='Training Commitment',
-        y_label='% Trainings completed on time'
-    )
-    if plot is not None:
-        st.pyplot(plot[0])
+        plot = plot_bar(
+            PAGE_NAME,
+            compute_training_commitment()[interval],
+            interval=interval,
+            start=start,
+            end=end, 
+            no_data_msg='No training was completed ' + ('during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
+            bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'},
+            tol_lower=80,
+            min_period=min_period, 
+            min_period_msg=' as Rad did not implement the current QMS training process until partway through the ' + interval.lower(), 
+            is_pct=True,
+            title='Training Commitment',
+            y_label='% Trainings completed on time'
+        )
+        if plot is not None:
+            st.pyplot(plot[0])
 
-    plot_training_completion()
+        plot_training_completion()

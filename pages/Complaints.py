@@ -1,11 +1,17 @@
+import os
+
 import numpy as np
 import streamlit as st
 
-from utils import ALL_PERIODS, DATE_COLS, PROD_COLORS, create_shifted_cmap
+from utils import ALL_PERIODS, DATE_COLS, PROD_COLORS, create_shifted_cmap, display_error, init_page
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar
 from utils.read_data import read_complaints, read_usage
 from utils.text_fmt import period_str
+
+
+init_page('Complaints')
+PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
 def compute_complaint_cts():
@@ -111,8 +117,11 @@ def compute_complaint_commitment(interval='Month', filter_by_device=True):
         filter_by_device (Optiona[bool]): If `True`, only consider complaints about the user-selected device. Defaults to `True`.
     
     Returns:
-        pd.Series: Complaint commitment for each period, indexed by period
+        Optional[pd.Series]: Complaint commitment for each period, indexed by period,
+        or `None` if complaint data was not retrieved
     """
+    if isinstance(df_complaints, str):
+        return
     df_complaints_ = filtered_df_complaints_device if filter_by_device else df_complaints
     cts_by_period = df_complaints_.groupby('Completed ' + interval).size().reindex(ALL_PERIODS[interval], fill_value=0)
     cts_le60_by_period = df_complaints_[df_complaints_['# Days Open'] <= 60].groupby('Completed ' + interval).size().reindex(ALL_PERIODS[interval], fill_value=0)
@@ -124,87 +133,90 @@ def compute_complaint_commitment(interval='Month', filter_by_device=True):
 df_complaints = read_complaints()
     
 
-if __name__ == '__main__':
+if __name__ == '__main__':    
     st.title('Complaints')
-    
-    interval = render_interval_filter()
-    all_devices = sorted(df_complaints['Device Type'].unique(), key=lambda dev: (dev == 'N/A', dev))
-    device = st.selectbox('Select Device', all_devices, key='device')
-    filtered_df_complaints_device = df_complaints[df_complaints['Device Type'] == device]
-    min_period = filtered_df_complaints_device[list(DATE_COLS['Complaint'])].min().min().to_period(interval[0])
-    render_period_filter(default_start=min_period)
-    start = st.session_state[interval + '_start_period']
-    end = st.session_state[interval + '_end_period']
+    if isinstance(df_complaints, str):
+        display_error(df_complaints)
+    else:
+        all_devices = sorted(df_complaints['Device Type'].unique(), key=lambda dev: (dev == 'N/A', dev))
+        device = st.selectbox('Select Device', all_devices, key='device')
+        filtered_df_complaints_device = df_complaints[df_complaints['Device Type'] == device]
+        interval = render_interval_filter(PAGE_NAME)
+        min_period = filtered_df_complaints_device[list(DATE_COLS['Complaint'])].min().min().to_period(interval[0])
+        start, end = render_period_filter(PAGE_NAME, interval, min_period)
 
-    complaint_cts = compute_complaint_cts()[interval]
-    for col in DATE_COLS['Complaint']:
-        total_cts, cts_by_status = complaint_cts[col]
+        complaint_cts = compute_complaint_cts()[interval]
+        for col in DATE_COLS['Complaint']:
+            total_cts, cts_by_status = complaint_cts[col]
+            plot = plot_bar(
+                PAGE_NAME,
+                total_cts,
+                grouped_data=cts_by_status,
+                no_data_msg='No ' + ('non-device' if device == 'N/A' else device) + (' complaint investigations were completed' if col == 'Investigation Completed Date' else ' complaints were ' + DATE_COLS['Complaint'][col].lower()) + (' in ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
+                bar_kwargs={'stacked': True, 'colormap': create_shifted_cmap('tab10', 4)},
+                trendline_color=PROD_COLORS[device],
+                min_period=min_period, 
+                min_period_msg=' as Rad did not implement the current complaint process until partway through the ' + interval.lower(), 
+                max_period_msg=' as there may be more ' + ('complaint investigations completed' if col == 'Investigation Completed Date' else 'complaints ' + DATE_COLS['Complaint'][col].lower()) + ' this ' + interval.lower(), 
+                clip_min=0,
+                rolling_avg_color=PROD_COLORS[device],
+                title='# Complaint Investigations Completed' if col == 'Investigation Completed Date' else '# Complaints ' + DATE_COLS['Complaint'][col],
+                y_label='# complaints',
+                y_integer=True
+            )
+            if plot is not None:
+                st.pyplot(plot[0])
+
+        if device != 'N/A':
+            complaint_pct_ratio = compute_complaint_pct_ratio()
+            if complaint_pct_ratio is None:
+                st.write('Cannot compute complaint percentage or complaint ratio as there is no usage data ' + ('during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.')
+            else:
+                complaint_pct, complaint_ratio, pct_ratio_start, msgs = complaint_pct_ratio
+                plot = plot_bar(
+                    PAGE_NAME,
+                    complaint_pct, 
+                    start=pct_ratio_start.asfreq(interval[0]),
+                    bar_kwargs={'color': PROD_COLORS[device]},
+                    trendline_color=PROD_COLORS[device],
+                    rolling_avg_color=PROD_COLORS[device],
+                    msgs=msgs,
+                    max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
+                    clip_min=0, 
+                    clip_max=100,
+                    title='Opened Complaints as % of Usage',
+                    y_label='% complaints'
+                )
+                if plot is not None:
+                    st.pyplot(plot[0])
+                plot = plot_bar(
+                    PAGE_NAME,
+                    complaint_ratio, 
+                    start=pct_ratio_start.asfreq(interval[0]),
+                    bar_kwargs={'color': PROD_COLORS[device]},
+                    trendline_color=PROD_COLORS[device],
+                    rolling_avg_color=PROD_COLORS[device],
+                    msgs=msgs,
+                    max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
+                    clip_min=0, 
+                    clip_max=100,
+                    title='Avg # Complaints per Account',
+                    y_label='# complaints'
+                )
+                if plot is not None:
+                    st.pyplot(plot[0])
+
         plot = plot_bar(
-            total_cts,
-            grouped_data=cts_by_status,
-            no_data_msg='No ' + ('non-device' if device == 'N/A' else device) + (' complaint investigations were completed' if col == 'Investigation Completed Date' else ' complaints were ' + DATE_COLS['Complaint'][col].lower()) + (' in ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
-            bar_kwargs={'stacked': True, 'colormap': create_shifted_cmap('tab10', 4)},
+            PAGE_NAME,
+            compute_complaint_commitment(interval),
+            bar_kwargs={'color': PROD_COLORS[device]},
+            max_period_msg=' as there may be more complaints closed this ' + interval.lower(), 
             trendline_color=PROD_COLORS[device],
-            min_period=min_period, 
-            min_period_msg=' as Rad did not implement the current complaint process until partway through the ' + interval.lower(), 
-            max_period_msg=' as there may be more ' + ('complaint investigations completed' if col == 'Investigation Completed Date' else 'complaints ' + DATE_COLS['Complaint'][col].lower()) + ' this ' + interval.lower(), 
-            clip_min=0,
             rolling_avg_color=PROD_COLORS[device],
-            title='# Complaint Investigations Completed' if col == 'Investigation Completed Date' else '# Complaints ' + DATE_COLS['Complaint'][col],
-            y_label='# complaints',
-            y_integer=True
+            is_pct=True,
+            title='Complaint Commitment',
+            x_label='Closure ' + interval,
+            y_label='% complaints open ≤60d'
         )
         if plot is not None:
             st.pyplot(plot[0])
-
-    if device != 'N/A':
-        complaint_pct_ratio = compute_complaint_pct_ratio()
-        if complaint_pct_ratio is None:
-            st.write('Cannot compute complaint percentage or complaint ratio as there is no usage data ' + ('during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.')
-        else:
-            complaint_pct, complaint_ratio, pct_ratio_start, msgs = complaint_pct_ratio
-            st.write(complaint_pct, complaint_ratio, pct_ratio_start, msgs)
-            plot = plot_bar(
-                complaint_pct, 
-                start=pct_ratio_start.asfreq(interval[0]),
-                bar_kwargs={'color': PROD_COLORS[device]},
-                trendline_color=PROD_COLORS[device],
-                rolling_avg_color=PROD_COLORS[device],
-                msgs=msgs,
-                max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
-                clip_min=0, 
-                clip_max=100,
-                title='Opened Complaints as % of Usage',
-                y_label='% complaints'
-            )
-            if plot is not None:
-                st.pyplot(plot[0])
-            plot = plot_bar(
-                complaint_ratio, 
-                start=pct_ratio_start.asfreq(interval[0]),
-                bar_kwargs={'color': PROD_COLORS[device]},
-                trendline_color=PROD_COLORS[device],
-                rolling_avg_color=PROD_COLORS[device],
-                msgs=msgs,
-                max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
-                clip_min=0, 
-                clip_max=100,
-                title='Avg # Complaints per Account',
-                y_label='# complaints'
-            )
-            if plot is not None:
-                st.pyplot(plot[0])
-
-    plot = plot_bar(
-        compute_complaint_commitment(interval),
-        bar_kwargs={'color': PROD_COLORS[device]},
-        max_period_msg=' as there may be more complaints closed this ' + interval.lower(), 
-        trendline_color=PROD_COLORS[device],
-        rolling_avg_color=PROD_COLORS[device],
-        is_pct=True,
-        title='Complaint Commitment',
-        x_label='Closure ' + interval,
-        y_label='% complaints open ≤60d'
-    )
-    if plot is not None:
-        st.pyplot(plot[0])
