@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from datetime import datetime
 import random
 
@@ -45,6 +46,51 @@ PROD_COLORS = {
     'RadOrthanc': '#2a82bd',
     'N/A': '#a0a0a0'  # E.g., website-related
 }
+# Data source descriptions to display in expander on each page
+SRCS = OrderedDict([
+    (
+        'AEs',
+        (
+            'FDA Medical Device Reporting (MDR) <a href="https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfmdr/search.CFM">database</a>',
+            'The FDA Medical Device Reporting (MDR) <a href="https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfmdr/search.CFM">database</a> <a href="https://open.fda.gov/apis/device/event">API</a> is queried for adverse events involving products with manufacturer <em>Radformation</em>.'
+        )
+    ),
+    (
+        'Audits',
+        (
+            '"For KPIs" <a href="https://docs.google.com/spreadsheets/d/1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI">Google Sheet</a>',
+            'The Google Sheets <a href="https://developers.google.com/workspace/sheets/api/reference/rest">API</a> is used to query the "Audits" <a href="https://docs.google.com/spreadsheets/d/1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI/edit?gid=1971664278#gid=1971664278">sheet</a> of the "For KPIs" <a href="https://docs.google.com/spreadsheets/d/1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI">Google Sheet</a>.'
+        )
+    ),
+    (
+        'CAPAs',
+        (
+            'Matrix QMS project <a href="https://radformation.matrixreq.com/adminConfig/QMS-projectsettings">settings</a> and <a href="https://radformation.matrixreq.com/adminConfig/QMS-CAPA">CAPA</a> <a href="https://radformation.matrixreq.com/QMS/F-CAPA-1">items</a>',
+            'The Matrix <a href="https://app.swaggerhub.com/apis/matrixreq/MatrixALM_QMS/2.5">API</a> is queried for <a href="https://radformation.matrixreq.com/adminConfig/QMS-CAPA">CAPA</a> <a href="https://radformation.matrixreq.com/QMS/F-CAPA-1">items</a> and project <a href="https://radformation.matrixreq.com/adminConfig/QMS-projectsettings">settings</a>'
+        )
+    ),
+    (
+        'Complaints',
+        (
+            '<a href="https://radformation.lightning.force.com/lightning/o/Complaint__c/list">Complaint</a> records in <a href="https://radformation.my.salesforce.com">Salesforce</a>',
+            'The Python <code>simple_salesforce</code> <a href="https://pypi.org/project/simple-salesforce">library</a> is used to issue <a href="https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql.htm">SOQL</a> queries against the <a href="https://radformation.my.salesforce.com">Salesforce</a> REST <a href="https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_rest.htm">API</a> to retrieve <a href="https://radformation.lightning.force.com/lightning/o/Complaint__c/list">Complaint</a> information.'
+        )
+    ),
+    (
+        'Training',
+        (
+            '"For KPIs" <a href="https://docs.google.com/spreadsheets/d/1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI">Google Sheet</a>',
+            'The Google Sheets <a href="https://developers.google.com/workspace/sheets/api/reference/rest">API</a> is used to query the "Training" <a href="https://docs.google.com/spreadsheets/d/1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI/edit?gid=85059500#gid=85059500">sheet of the "For KPIs" <a href="https://docs.google.com/spreadsheets/d/1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI">Google Sheet</a>.'
+        )
+    ),
+    (
+        'Usage',
+        (
+            '<a href="https://radformation.lightning.force.com/lightning/o/WebsiteInstitution__c/list">WebsiteInstitution</a>, <a href="https://radformation.lightning.force.com/lightning/o/WebsiteInstitutionProduct__c/list">WebsiteInstitutionProduct</a>, and <a href="https://radformation.lightning.force.com/lightning/o/WebsiteProductLicenseDailyStatistic__c/list">WebsiteProductLicenseDailyStatistic</a> records in <a href="https://radformation.my.salesforce.com">Salesforce</a>',
+            'The Python <code>simple_salesforce</code> <a href="https://pypi.org/project/simple-salesforce">library</a> is used to issue <a href="https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql.htm">SOQL</a> queries against the <a href="https://radformation.my.salesforce.com">Salesforce</a> REST <a href="https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_rest.htm">API</a> to retrieve <a href="https://radformation.lightning.force.com/lightning/o/WebsiteInstitution__c/list">WebsiteInstitution</a>, <a href="https://radformation.lightning.force.com/lightning/o/WebsiteInstitutionProduct__c/list">WebsiteInstitutionProduct</a>, and <a href="https://radformation.lightning.force.com/lightning/o/WebsiteProductLicenseDailyStatistic__c/list">WebsiteProductLicenseDailyStatistic</a> information.'
+        )
+    )
+])
 RAD_COLOR = '#3498db'  # Rad logo color
 RAD_DATE = '2016-10-26'  # Rad incorporation date
 ALL_PERIODS = {  # All months and quarters since Rad incorporation
@@ -121,15 +167,6 @@ def create_shifted_cmap(cmap_name, shift=None):
     return ListedColormap(shifted_colors)
 
 
-def display_error(msg):
-    """Displays a bold, red error message
-    
-    Parameters:
-        msg: The error message to display
-    """
-    st.html('<p style="color:red;font-weight:bold;">' + msg + '</p>')
-
-
 def init_page(pg_title):
     """
     Initializes the Streamlit page configuration safely.
@@ -149,3 +186,36 @@ def init_page(pg_title):
     if 'page_configured' not in st.session_state:
         st.set_page_config(page_title=pg_title, layout='wide')
         st.session_state['page_configured'] = True
+
+
+def show_data_srcs(pg_title='RA/QA KPIs', error_msg=None):
+    """
+    Displays a collapsible "Data Sources" expander on the Streamlit page.
+
+    The expander shows the data source(s) relevant to the given page.  
+    If an error message is provided, the expander defaults to expanded, 
+    uses a red ❌ icon instead of ℹ️, and displays the error message in bold red text.
+
+    Parameters:
+        pg_title (str, optional): 
+            The title of the page whose data sources should be displayed. 
+            Defaults to 'RA/QA KPIs'. Uses a global `SRCS` mapping to 
+            resolve page-specific data source information.
+        error_msg (str, optional): 
+            If provided, overrides the default ℹ️ icon with ❌, expands 
+            the expander by default, and appends the error message in 
+            highlighted red text below the data sources. Defaults to None.
+
+    Returns:
+        None
+    """
+    icon = '❌' if error_msg else 'ℹ️'
+    with st.expander(icon + ' Data Sources', expanded=bool(error_msg)):
+        if pg_title == 'RA/QA KPIs':
+            html = '<br>'.join(f'<strong>{pg}:</strong> {src[0]}' for pg, src in SRCS.items())
+        else:
+            html = SRCS[pg_title][1]
+        if error_msg:
+            html += f'<br><br><span style="color:red;font-weight:bold;">{error_msg}</span>' 
+        st.html(html)
+        
