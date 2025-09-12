@@ -1,7 +1,6 @@
 # Radformation RA/QA Quality Metrics Dashboard
 
-## End users:
-Access the live app [here]()!
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ra-kpis.streamlit.app)
 
 ## Developers:
 ### Quick start
@@ -22,4 +21,5 @@ From the root directory:
 ### Directory structure
 
 `> pages`: Each file is a page (see the left sidebar) in the app.
+
 `> utils`: Library constants and functions used across multiple pages.
