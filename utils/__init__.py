@@ -4,6 +4,10 @@ import random
 from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
 import pandas as pd
+import streamlit as st
+
+
+pd.set_option('future.no_silent_downcasting', True)
 
 
 # Constants
@@ -115,3 +119,33 @@ def create_shifted_cmap(cmap_name, shift=None):
         shift = random.randint(1, len(colors) - 1)
     shifted_colors = colors[shift:] + colors[:shift]
     return ListedColormap(shifted_colors)
+
+
+def display_error(msg):
+    """Displays a bold, red error message
+    
+    Parameters:
+        msg: The error message to display
+    """
+    st.html('<p style="color:red;font-weight:bold;">' + msg + '</p>')
+
+
+def init_page(pg_title):
+    """
+    Initializes the Streamlit page configuration safely.
+
+    Ensures that `st.set_page_config` is called only once per page
+    and always before any other Streamlit commands. This avoids the
+    `StreamlitSetPageConfigMustBeFirstCommandError` that occurs when
+    multiple imports or reruns cause duplicate calls.
+
+    - Sets the page title to `pg_title` and layout to 'wide'.
+    - Uses `st.session_state['page_configured']` as a flag to 
+        prevent multiple calls within the same page.
+
+    Returns:
+        None
+    """
+    if 'page_configured' not in st.session_state:
+        st.set_page_config(page_title=pg_title, layout='wide')
+        st.session_state['page_configured'] = True
