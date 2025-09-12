@@ -35,10 +35,10 @@ def compute_trendline(y_values, pred_before=0, pred_after=0, clip_min=None, clip
     res = minimize(loss, x0=[1.0, 0.0], constraints=constraints)
 
     a, b = res.x
-    to_pred = np.concatenate([np.arange(-pred_before, 0), period_nos, np.arange(len(period_nos), len(period_nos) + pred_after)])
+    to_pred = np.concatenate([np.arange(-pred_before, 0), period_nos, np.arange(len(period_nos), len(period_nos) + pred_after)])  # Predict for all periods
     y_pred = a * to_pred + b
     
     if clip_min is not None or clip_max is not None:
         y_pred = np.clip(y_pred, clip_min, clip_max)
-
+        
     return y_pred
