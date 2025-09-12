@@ -10,7 +10,7 @@ from utils.calculations import compute_trendline
 from utils.text_fmt import items_in_a_series, period_str
 
 
-def plot_bar(data, grouped_data=None, trendline=True, rolling_avg=True, **kwargs):
+def plot_bar(page_name, data, grouped_data=None, trendline=True, rolling_avg=True, **kwargs):
     """
     Plots a bar chart with optional trendline, rolling average, and tolerance shading.
 
@@ -19,9 +19,11 @@ def plot_bar(data, grouped_data=None, trendline=True, rolling_avg=True, **kwargs
     - Trendline estimation with optional prediction before/after the interval
     - Rolling average overlay
     - Quality goal tolerance shading (highlighting acceptable value ranges)
+    - Optional dashes at missing values
     - Contextual annotations and axis formatting
 
     Parameters:
+        page_name (str): Unique identifier for the page.
         data (pd.Series): Time-indexed (`PeriodIndex`) series of values to plot.
         grouped_data (Optional[pd.DataFrame]): If provided, used instead of `data` for bar plot (for grouped categories).
         trendline (bool): Whether to overlay a dashed linear trendline. Defaults to `True`.
@@ -44,60 +46,63 @@ def plot_bar(data, grouped_data=None, trendline=True, rolling_avg=True, **kwargs
             - msgs (List[str]): Additional footnote-style messages to annotate below the plot.
             - min_period_msg, max_period_msg (str): Appended to trendline annotation if min/max period is ot used in trendline calculation.
             - no_data_msg (str): Message shown when data in range is all zero or missing.
+            - label_missing (str): Legend entry for the dashes indicating missing values. If not provided, missing values are not indicated.
 
     Returns:
         tuple: (matplotlib.figure.Figure, matplotlib.axes.Axes) of the constructed plot,
                or `None` if no data is available to plot.
     """
-    #interval = kwargs.get('interval', 'Month')
-    interval = st.session_state.interval
-    start = kwargs.get('start', st.session_state[interval + '_start_period'])
-    end = st.session_state[interval + '_end_period']
-    #rad_period = pd.Period(RAD_DATE, freq=interval[0])
-    #curr_period = pd.to_datetime('today').to_period(interval[0])
+    interval = st.session_state[f'{page_name}_interval']
+    
+    # Plotting range
+    start = kwargs.get('start', st.session_state[f'{page_name}_{interval}_start_period'])
+    end = kwargs.get('end', st.session_state[f'{page_name}_{interval}_end_period'])
+    
+    # Total range (used to compute rolling average)
     min_period = kwargs.get('min_period', ALL_PERIODS[interval][0])
     max_period = kwargs.get('max_period', ALL_PERIODS[interval][-1])
-    #start = kwargs.get('start', min_period)
-    #end = kwargs.get('end', max_period)
     all_periods_all = pd.period_range(start=min_period, end=max_period, freq=interval[0])
-    data = data.reindex(all_periods_all, fill_value=0)
+    data = data.reindex(all_periods_all)
+    
+    # Only plot data in the user-specified range
     filtered_data = data[start:end]
     if filtered_data.eq(0).all():
         st.write(kwargs.get('no_data_msg', 'No data'))
         return
-    
+
     fig, ax = plt.subplots()
     msgs = kwargs.get('msgs', [])
     all_periods = pd.period_range(start=start, end=end, freq=interval[0])
     x_labels = [period_str(period, interval) for period in all_periods]
-    
+
     if grouped_data is None:
         bar_data = data
     else:
-        grouped_data = grouped_data.reindex(all_periods_all, fill_value=0)
+        grouped_data = grouped_data.reindex(ALL_PERIODS[interval], fill_value=0)
         bar_data = grouped_data
-    filtered_bar_data = bar_data[start:end]
+    filtered_bar_data = bar_data[start:end].copy().fillna(0)
     filtered_bar_data.plot(kind='bar', ax=ax, alpha=0.7, **kwargs.get('bar_kwargs', {}))
     
     is_pct = kwargs.get('is_pct', False)
         
     if trendline:
         min_period_msg = kwargs.get('min_period_msg', ' as Rad was not incorporated until ' + pd.to_datetime(RAD_DATE).strftime('%b %d, %Y'))
-        y_values = filtered_data.values.copy()
+        # Extract values to fit the trendline to
+        # Exclude first (`min_period`) and last (`max_period`) periods in which data is available
+        y_values = filtered_data.copy()
         pred_before = pred_after = 0
         trendline_msgs = []
         if start == min_period:
             trendline_msgs.append(period_str(min_period, interval) + min_period_msg)
-            y_values = y_values[1:]
-            pred_before = 1
+            y_values = y_values[1:]  # Exclude first period in which data is available
+            pred_before = 1  # Instead of earliest value, extrapolate to earliest period
         if 'max_period_msg' in kwargs and end == max_period:
             trendline_msgs.append(period_str(max_period, interval) + kwargs['max_period_msg'])
-            y_values = y_values[:-1]
-            pred_after = 1
-        if len(y_values) > 2:
-            st.write(all_periods, data, filtered_data, y_values, pred_before, pred_after)
+            y_values = y_values[:-1]   # Exclude last period in which data is available
+            pred_after = 1  # Instead of latest value, extrapolate to latest period
+        if len(y_values) > 2:  # Not helpful to fit a trendline to 2 or fewer values
             clip_min, clip_max = kwargs.get('clip_min', 0 if is_pct else None), kwargs.get('clip_max', 100 if is_pct else None)
-            y_pred = compute_trendline(y_values, pred_before, pred_after, clip_min, clip_max)
+            y_pred = compute_trendline(y_values, pred_before, pred_after, clip_min, clip_max)  # Get a prediction for each period
             trend_color = kwargs.get('trendline_color', RAD_COLOR)
             ax.plot(x_labels, y_pred, linestyle='dashed', color=trend_color, alpha=0.7, label='Trend' if not trendline_msgs else 'Trend*')
             if trendline_msgs:
@@ -108,7 +113,7 @@ def plot_bar(data, grouped_data=None, trendline=True, rolling_avg=True, **kwargs
             
     if rolling_avg:
         rolling_avg_color = kwargs.get('rolling_avg_color', RAD_COLOR)
-        rolling_avg = data.rolling(window=3, min_periods=3).mean()[start:]
+        rolling_avg = data.rolling(window=3, min_periods=3).mean()[start:].dropna()
         if end == max_period:
             rolling_avg = rolling_avg[:end - 1]
         else:
@@ -131,6 +136,19 @@ def plot_bar(data, grouped_data=None, trendline=True, rolling_avg=True, **kwargs
             ax.axhline(y=tol_lower, **hline_args)
         if tol_upper:
             ax.axhline(y=tol_upper, **hline_args)
+            
+    # Indicate missing data
+    if 'label_missing' in kwargs:
+        na_labels = [label for label, is_na in zip(x_labels, bar_data[start:end].isna()) if is_na]
+        ax.plot(
+            na_labels,
+            [y_lim * 0.01] * len(na_labels),
+            marker='_',
+            color='black',
+            linestyle='None',
+            markeredgewidth=1.5,
+            label=kwargs['label_missing']
+        )
         
     ax.set_xlabel(kwargs.get('x_label', interval))
     x_positions = range(len(filtered_data))
