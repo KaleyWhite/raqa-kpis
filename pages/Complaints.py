@@ -3,7 +3,7 @@ import os
 import numpy as np
 import streamlit as st
 
-from utils import ALL_PERIODS, DATE_COLS, PROD_COLORS, create_shifted_cmap, display_error, init_page
+from utils import ALL_PERIODS, DATE_COLS, PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar
 from utils.read_data import read_complaints, read_usage
@@ -135,9 +135,8 @@ df_complaints = read_complaints()
 
 if __name__ == '__main__':    
     st.title('Complaints')
-    if isinstance(df_complaints, str):
-        display_error(df_complaints)
-    else:
+    show_data_srcs('Complaints', df_complaints if isinstance(df_complaints, str) else None)
+    if not isinstance(df_complaints, str):
         all_devices = sorted(df_complaints['Device Type'].unique(), key=lambda dev: (dev == 'N/A', dev))
         device = st.selectbox('Select Device', all_devices, key='device')
         filtered_df_complaints_device = df_complaints[df_complaints['Device Type'] == device]

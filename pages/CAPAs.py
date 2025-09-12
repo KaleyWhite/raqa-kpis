@@ -2,7 +2,7 @@ import os
 
 import streamlit as st
 
-from utils import ALL_PERIODS, DATE_COLS, display_error, init_page
+from utils import ALL_PERIODS, DATE_COLS, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.matrix import map_dropdown_ids
 from utils.plotting import plot_bar
@@ -141,9 +141,8 @@ df_capas = read_capas()
      
 if __name__ == '__main__':  
     st.title('CAPAs')
-    if isinstance(df_capas, str):
-        display_error(df_capas)
-    else:        
+    show_data_srcs('CAPAs', df_capas if isinstance(df_capas, str) else None)
+    if not isinstance(df_capas, str):       
         all_prob_types = sorted(map_dropdown_ids('dd_CAPA_Problem_Types').values())
         prob_types = st.multiselect('Select Problem Types', options=all_prob_types, default=all_prob_types, key='prob_types')
         if not prob_types:

@@ -3,7 +3,7 @@ import os
 import numpy as np
 import streamlit as st
 
-from utils import PROD_COLORS, create_shifted_cmap, init_page
+from utils import PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
 from utils.plotting import plot_bar
 from utils.filters import render_interval_filter, render_period_filter
 from utils.read_data import read_audits
@@ -100,16 +100,18 @@ dfs_audits = {'Month': df_audits, 'Quarter': compute_audits_by_qtr(df_audits)}
 
 if __name__ == '__main__':
     st.title('Audits')
-    audit_types = st.multiselect('Select Audit Types', options=['Internal', 'External'], default=['Internal', 'External'], key='audit_types')
-    if not audit_types:
-        st.write('Select audit type(s) to plot data')
-    else:
+    show_data_srcs('Audits', df_audits if isinstance(df_audits, str) else None)
+
+    if not isinstance(df_audits, str):
+        audit_types = st.multiselect('Select Audit Types', options=['Internal', 'External'], default=['Internal', 'External'], key='audit_types')
+        if not audit_types:
+            st.write('Select audit type(s) to plot data')
         filtered_dfs_audits = {interval_: df_audits[df_audits['Type'].isin(audit_types)] for interval_, df_audits in dfs_audits.items()}
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_audits[interval].min()
         min_period_str = period_str(min_period, interval)
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
-
+        
         plot_audit_cts()
 
         plot = plot_bar(

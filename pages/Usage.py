@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-from utils import ALL_PERIODS, PROD_COLORS, display_error, init_page
+from utils import ALL_PERIODS, PROD_COLORS, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar
 from utils.read_data import read_usage
@@ -17,9 +17,8 @@ PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 if __name__ == '__main__':
     st.title('Usage Volume')
     df_usage = read_usage()
-    if isinstance(df_usage, str):
-        display_error(df_usage)
-    else:
+    show_data_srcs('Usage', df_usage if isinstance(df_usage, str) else None)
+    if not isinstance(df_usage, str):
         devices = sorted(df_usage['Device'].unique())
         device = st.selectbox('Select Device', devices, key='device')
         df_usage_device = df_usage[df_usage['Device'] == device]

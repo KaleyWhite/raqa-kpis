@@ -2,7 +2,7 @@ import os
 
 import streamlit as st
 
-from utils import ALL_PERIODS, PROD_COLORS, display_error, init_page
+from utils import ALL_PERIODS, PROD_COLORS, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.read_data import read_aes
 from utils.plotting import plot_bar
@@ -52,9 +52,8 @@ def compute_ae_cts():
 if __name__ == '__main__':
     st.title('Adverse Events')
     df_aes = read_aes()
-    if isinstance(df_aes, str):
-        display_error(df_aes)
-    else:
+    show_data_srcs('AEs', df_aes if isinstance(df_aes, str) else None)
+    if not isinstance(df_aes, str):
         interval = render_interval_filter(PAGE_NAME)
         start, end = render_period_filter(PAGE_NAME, interval)
         ae_cts = compute_ae_cts()[interval]

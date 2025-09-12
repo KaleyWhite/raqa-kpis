@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from utils import ALL_PERIODS, PROD_COLORS, RAD_COLOR, display_error, init_page
+from utils import ALL_PERIODS, PROD_COLORS, RAD_COLOR, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar
 from utils.read_data import read_training
@@ -120,10 +120,8 @@ if isinstance(df_training_mo, pd.DataFrame):
 if __name__ == '__main__':
     st.title('QMS Training')
     st.markdown('**Note**: This is dummy data! REAL QMS training stats will be provided once we roll out QMS training in Matrix!')
-
-    if dfs_training is None:
-        display_error(df_training_mo)
-    else:
+    show_data_srcs('Training', df_training_mo if isinstance(df_training_mo, str) else None)
+    if not isinstance(df_training_mo, str):
         interval = render_interval_filter(PAGE_NAME)
         training_commitment_percentage = compute_training_commitment()
         min_period = df_training_mo[interval].min()
