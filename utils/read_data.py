@@ -6,8 +6,8 @@ import requests
 import streamlit as st
 
 from utils import DATE_COLS, add_period_cols, correct_date_dtype
-from utils.matrix import get_matrix_items
-from utils.salesforce import get_sf_records
+from utils.matrix import get_matrix_items, map_dropdown_ids
+from utils.salesforce import get_sf_records, sf
 
 
 @st.cache_data
@@ -42,15 +42,18 @@ def read_aes():
 
     return df_aes
 
+
 @st.cache_data
 def read_audits():
     """
     Returns a `DataFrame` of audit data from the "For KPIs" Google Sheet
 
     Returns:
-        pd.DataFrame: Audit data
+        Union[pd.DataFrame, str]: Audit data, or an error message if the GSheet could not be read
     """
     df_audits = read_gsheet('Audits')
+    if isinstance(df_audits, str):
+        return df_audits
     df_audits.iloc[:, 1:] = df_audits.iloc[:, 1:].astype(int).fillna(0)
     
     # Create the transformed DataFrame
@@ -80,9 +83,13 @@ def read_capas():
     Returns a `DataFrame` of CAPA data from Matrix
 
     Returns:
-        pd.DataFrame: CAPA data
+        Union[pd.DataFrame, str]: CAPA data, or error message string if CAPA data could not be read from Matrix
     """
-    df_capas = correct_date_dtype(get_matrix_items('CAPA'))
+    matrix_items = get_matrix_items('CAPA')
+    if isinstance(matrix_items, str):
+        return matrix_items
+    df_capas = correct_date_dtype(matrix_items)
+    df_capas['Problem Type'] = df_capas['Problem Type'].map(map_dropdown_ids('dd_CAPA_Problem_Types'))
     add_period_cols(df_capas, DATE_COLS['CAPA'])
     
     return df_capas
@@ -94,8 +101,10 @@ def read_complaints():
     Returns a `DataFrame` of complaint data from Salesforce
 
     Returns:
-        pd.DataFrame: Complaint data
+        Union[pd.DataFrame, str]: Complaint data, or error message if could not connect to Salesforce
     """
+    if sf is None:
+        return 'Could not retrieve complaint data from Salesforce.'
     df_complaints = correct_date_dtype(get_sf_records('Complaint__c'))
     
     df_complaints['Device Type'].fillna('N/A', inplace=True)
@@ -116,14 +125,18 @@ def read_gsheet(sheet_name):
         sheet_name (str): Name of the sheet in the "For KPIs" Google Sheet
 
     Returns:
-        pd.DataFrame: The table on that sheet in `DataFrame` format
+        Union[pd.DataFrame, str]: The table on that sheet in `DataFrame` format,
+        or an error message string if the GSheet could not be read
     """
-    scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-    creds = service_account.Credentials.from_service_account_info(st.secrets['gcp_svc_acct'], scopes=scopes)
-    service = build('sheets', 'v4', credentials=creds)
-    sheets = service.spreadsheets()
+    try:
+        scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+        creds = service_account.Credentials.from_service_account_info(st.secrets['gcp_svc_acct'], scopes=scopes)
+        service = build('sheets', 'v4', credentials=creds)
+        sheets = service.spreadsheets()
 
-    result = sheets.values().get(spreadsheetId='1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI', range=f'{sheet_name}!A1:H').execute()['values']
+        result = sheets.values().get(spreadsheetId='1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI', range=f'{sheet_name}!A1:H').execute()['values']
+    except Exception as e:
+        return 'Could not read from "For KPIs" Google Sheet.<br>' + str(e)
     return pd.DataFrame(result[1:], columns=result[0])
 
 
@@ -133,16 +146,18 @@ def read_training():
     Returns a `DataFrame` of QMS training data from the "For KPIs" Google Sheet
 
     Returns:
-        pd.DataFrame: Training data
+        Union[pd.DataFrame, str]: Training data, or error message string if "For KPIs" training data could not be read
     """
     df_training = read_gsheet('Training')
+    if isinstance(df_training, str):
+        return df_training
     df_training.iloc[:, 2:] = df_training.iloc[:, 2:].map(lambda x: x.split(' (')[0]).astype(int)
     df_training['# Open Trainings Overdue'] = df_training['# Open Trainings'] - df_training['# Open Trainings NOT Overdue']
     df_training['% Training Complete'] = df_training['# Trainings Completed'] / (df_training['# Trainings Completed'] + df_training['# Open Trainings']).replace(0, np.nan) * 100
     df_training['Quarter'] = df_training['Month'].astype('period[Q]')
     df_training['Month'] = df_training['Month'].astype('period[M]')
     df_training.sort_values(['Month', 'User'], inplace=True)
-    
+
     return df_training
 
 
@@ -152,8 +167,10 @@ def read_usage():
     Returns a `DataFrame` of product usage data from Salesforce
 
     Returns:
-        pd.DataFrame: Usage data
+        Union[pd.DataFrame, str]: Usage data, or error message string if could not connect to Salesforce
     """
+    if sf is None:
+        return 'Could not retrieve usage data from Salesforce.'
     webinst_df = get_sf_records('WebsiteInstitution__c', ['Id', 'Name']).set_index('Id')
     webinstprod_df = get_sf_records('WebsiteInstitutionProduct__c', ['Id', 'WebsiteInstitution__c', 'WebInstitution_Product__c']).set_index('Id')
     df_usage = correct_date_dtype(get_sf_records('WebsiteProductLicenseDailyStatistic__c', ['WebsiteInstitutionProduct__c', 'NumberOfRuns__c', 'Usage_Date__c']), ['Usage Date'])
