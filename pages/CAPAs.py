@@ -5,16 +5,16 @@ import streamlit as st
 from utils import ALL_PERIODS, DATE_COLS, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.matrix import map_dropdown_ids
-from utils.plotting import plot_bar
+from utils.plotting import plot_bar, responsive_columns
 from utils.read_data import read_capas
 from utils.text_fmt import items_in_a_series, period_str
 
 
-init_page('CAPAs')
+if __name__ == '__main__':
+    init_page('CAPAs')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
-#@st.cache_data
 def compute_capa_cts():
     """
     Computes CAPA counts by month and quarter for each CAPA-related date field,
@@ -62,7 +62,6 @@ def compute_capa_cts():
     return capa_cts
 
 
-@st.cache_data
 def ct_by_submission_date(interval='Month', filter_by_prob_type=True):
     """
     Counts the number of CAPAs submitted during each period in the user-selected time interval.
@@ -78,13 +77,12 @@ def ct_by_submission_date(interval='Month', filter_by_prob_type=True):
     """
     if isinstance(df_capas, str):
         return
-    df_capas_ = filtered_df_capas_prob_types if filter_by_prob_type else df_capas
+    df_capas_ = filtered_df_capas_prob_types.copy() if filter_by_prob_type else df_capas.copy()
     by_submission_date = df_capas_.groupby(interval + ' of Submission').size().reindex(ALL_PERIODS[interval], fill_value=0)  # # CAPAs submitted during each period in the interval
     
     return by_submission_date
 
 
-@st.cache_data
 def compute_capa_commitment(interval='Month', filter_by_prob_type=True):
     """
     Returns CAPA commitment (percent of CAPAs submitted on or before their due date) for each period in which a CAPA for one of the user-selected problem types was submitted
@@ -102,7 +100,7 @@ def compute_capa_commitment(interval='Month', filter_by_prob_type=True):
     
     submitted = ct_by_submission_date(interval, filter_by_prob_type)
     
-    df_capas_ = filtered_df_capas_prob_types if filter_by_prob_type else df_capas
+    df_capas_ = filtered_df_capas_prob_types.copy() if filter_by_prob_type else df_capas.copy()
     ct_on_time = df_capas_[df_capas_['Due Date'] <= df_capas_['Date of Submission']].groupby(interval + ' of Submission').size().reindex(ALL_PERIODS[interval], fill_value=0)  # # CAPAs submitted on time during each period in the interval
     
     commitment = ct_on_time / submitted * 100
@@ -110,7 +108,6 @@ def compute_capa_commitment(interval='Month', filter_by_prob_type=True):
     return commitment
 
 
-@st.cache_data
 def compute_capa_effectiveness(interval='Month', filter_by_prob_type=True):
     """
     Returns CAPA effectiveness (percent of CAPAs that passed effectiveness check) for each period in which a CAPA for one of the user-selected problem types was submitted
@@ -128,7 +125,7 @@ def compute_capa_effectiveness(interval='Month', filter_by_prob_type=True):
     
     submitted = ct_by_submission_date(interval, filter_by_prob_type)
     
-    df_capas_ = filtered_df_capas_prob_types if filter_by_prob_type else df_capas
+    df_capas_ = filtered_df_capas_prob_types.copy() if filter_by_prob_type else df_capas.copy()
     ct_passed = df_capas_[df_capas_['Effectiveness Verification Status'] == 'Pass'].groupby(interval + ' of Submission').size().reindex(ALL_PERIODS[interval], fill_value=0)
     
     effectiveness = ct_passed / submitted * 100
@@ -148,22 +145,23 @@ if __name__ == '__main__':
         if not prob_types:
             st.write('Select problem type(s) to plot data')
         else:
-            filtered_df_capas_prob_types = df_capas[df_capas['Problem Type'].isin(prob_types)]
-            min_period = df_capas[list(DATE_COLS['CAPA'])].min().min()
+            plots = []
             
+            filtered_df_capas_prob_types = df_capas[df_capas['Problem Type'].isin(prob_types)]
             interval = render_interval_filter(PAGE_NAME)
+            min_period = df_capas[list(DATE_COLS['CAPA'])].min().min().to_period(interval[0])
             start, end = render_period_filter(PAGE_NAME, interval, min_period)
             
             capa_cts = compute_capa_cts()[interval]
-            min_period_msg = ' as Rad did not start tracking CAPAs in Matrix until partway through the ' + interval.lower()
-            for col in DATE_COLS['CAPA']:
+            min_period_msg = ' as earlier CAPAs than this ' + interval.lower() + ' are not tracked in Matrix'
+            for col, short in DATE_COLS['CAPA'].items():
                 total_cts, cts_by_prob_type = capa_cts[col]
                 plot = plot_bar(
                     PAGE_NAME,
                     total_cts, 
                     grouped_data=cts_by_prob_type, 
                     bar_kwargs={'stacked': True, 'colormap': 'tab10'},
-                    no_data_msg='No ' + items_in_a_series(prob_types, 'or') + ' CAPAs ' + (' during ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
+                    no_data_msg='No ' + items_in_a_series(prob_types, 'or') + ' CAPAs were ' + short.lower() + (' during ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
                     min_period=min_period,
                     min_period_msg=min_period_msg,
                     max_period_msg=' as there may be more CAPAs ' + DATE_COLS['CAPA'][col].lower() + ' this ' + interval.lower(), 
@@ -173,7 +171,7 @@ if __name__ == '__main__':
                     y_integer=True
                 )
                 if plot is not None:
-                    st.pyplot(plot[0])
+                    plots.append(plot[0])
             commitment_effectiveness_max_period_msg = ' as there may be more CAPAs submitted this ' + interval.lower()
             plot = plot_bar(
                 PAGE_NAME,
@@ -188,7 +186,7 @@ if __name__ == '__main__':
                 label_missing='No CAPAs submitted',
             )
             if plot is not None:
-                st.pyplot(plot[0])
+                plots.append(plot[0])
             plot = plot_bar(
                 PAGE_NAME,
                 compute_capa_effectiveness(interval),
@@ -202,4 +200,5 @@ if __name__ == '__main__':
                 label_missing='No CAPAs submitted',
             )
             if plot is not None:
-                st.pyplot(plot[0])
+                plots.append(plot[0])
+            responsive_columns(plots)

@@ -5,12 +5,13 @@ import streamlit as st
 
 from utils import ALL_PERIODS, DATE_COLS, PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
-from utils.plotting import plot_bar
+from utils.plotting import plot_bar, responsive_columns
 from utils.read_data import read_complaints, read_usage
 from utils.text_fmt import period_str
 
 
-init_page('Complaints')
+if __name__ == '__main__':
+    init_page('Complaints')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
@@ -61,7 +62,6 @@ def compute_complaint_cts():
     return complaint_cts
 
 
-@st.cache_data
 def compute_complaint_pct_ratio():
     """
     Computes complaint percentage and complaint-to-user ratio for the user-selected device for each period.
@@ -107,7 +107,6 @@ def compute_complaint_pct_ratio():
     return complaint_pct, complaint_ratio, pct_ratio_start, msgs
 
 
-@st.cache_data
 def compute_complaint_commitment(interval='Month', filter_by_device=True):
     """
     Computes complaint commitment (percentage of complaints open for 60 days or fewer) for complaints for the user-selected device, for each period since the first complaint for that device
@@ -137,6 +136,8 @@ if __name__ == '__main__':
     st.title('Complaints')
     show_data_srcs('Complaints', df_complaints if isinstance(df_complaints, str) else None)
     if not isinstance(df_complaints, str):
+        plots = []
+        
         all_devices = sorted(df_complaints['Device Type'].unique(), key=lambda dev: (dev == 'N/A', dev))
         device = st.selectbox('Select Device', all_devices, key='device')
         filtered_df_complaints_device = df_complaints[df_complaints['Device Type'] == device]
@@ -164,7 +165,7 @@ if __name__ == '__main__':
                 y_integer=True
             )
             if plot is not None:
-                st.pyplot(plot[0])
+                plots.append(plot[0])
 
         if device != 'N/A':
             complaint_pct_ratio = compute_complaint_pct_ratio()
@@ -179,7 +180,7 @@ if __name__ == '__main__':
                     bar_kwargs={'color': PROD_COLORS[device]},
                     trendline_color=PROD_COLORS[device],
                     rolling_avg_color=PROD_COLORS[device],
-                    msgs=msgs,
+                    msgs=[msgs[0]],
                     max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
                     clip_min=0, 
                     clip_max=100,
@@ -187,7 +188,7 @@ if __name__ == '__main__':
                     y_label='% complaints'
                 )
                 if plot is not None:
-                    st.pyplot(plot[0])
+                    plots.append(plot[0])
                 plot = plot_bar(
                     PAGE_NAME,
                     complaint_ratio, 
@@ -195,7 +196,7 @@ if __name__ == '__main__':
                     bar_kwargs={'color': PROD_COLORS[device]},
                     trendline_color=PROD_COLORS[device],
                     rolling_avg_color=PROD_COLORS[device],
-                    msgs=msgs,
+                    msgs=[msgs[1]],
                     max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
                     clip_min=0, 
                     clip_max=100,
@@ -203,7 +204,7 @@ if __name__ == '__main__':
                     y_label='# complaints'
                 )
                 if plot is not None:
-                    st.pyplot(plot[0])
+                    plots.append(plot[0])
 
         plot = plot_bar(
             PAGE_NAME,
@@ -215,7 +216,10 @@ if __name__ == '__main__':
             is_pct=True,
             title='Complaint Commitment',
             x_label='Closure ' + interval,
-            y_label='% complaints open ≤60d'
+            y_label='% complaints open ≤60d',
+            label_missing='No complaints received'
         )
         if plot is not None:
-            st.pyplot(plot[0])
+            plots.append(plot[0])
+        
+        responsive_columns(plots)
