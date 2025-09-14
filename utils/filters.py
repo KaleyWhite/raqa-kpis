@@ -44,14 +44,12 @@ def render_period_filter(page_name, interval='Month', default_start=None, defaul
     if default_end is None:
         default_end = ALL_PERIODS[interval][-1]
     all_periods = pd.period_range(start=default_start, end=default_end, freq=interval[0])
-
     options = all_periods
     labels = options.strftime('%b %Y' if interval == 'Month' else 'Q%q %Y')
-
     # Initialize defaults only if not already set
-    if start_key not in st.session_state:
+    if start_key not in st.session_state or st.session_state[start_key] < options[0]:
         st.session_state[start_key] = default_start
-    if end_key not in st.session_state:
+    if end_key not in st.session_state or st.session_state[end_key] > options[-1]:
         st.session_state[end_key] = default_end
 
     default_value = (
