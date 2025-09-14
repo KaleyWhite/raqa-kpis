@@ -4,13 +4,14 @@ import numpy as np
 import streamlit as st
 
 from utils import PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
-from utils.plotting import plot_bar
+from utils.plotting import plot_bar, responsive_columns
 from utils.filters import render_interval_filter, render_period_filter
 from utils.read_data import read_audits
 from utils.text_fmt import period_str
 
 
-init_page('Audits')
+if __name__ == '__main__':
+    init_page('Audits')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
@@ -91,7 +92,7 @@ def plot_audit_cts():
             filtered = [(h, l) for h, l in zip(handles, labels) if len(audit_types) != 1 or l not in ['Internal', 'External']]
             ax.legend(*zip(*filtered))  # Update legend with filtered entries
             
-        st.pyplot(fig)
+        return fig, ax
 
 
 df_audits = read_audits()
@@ -111,21 +112,24 @@ if __name__ == '__main__':
         min_period = df_audits[interval].min()
         min_period_str = period_str(min_period, interval)
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
-        
-        plot_audit_cts()
 
+        plots = []
+        plot = plot_audit_cts()
+        if plots is not None:
+            plots.append(plot[0])
         plot = plot_bar(
             PAGE_NAME,
             compute_audit_commitment(interval),
             no_data_msg='No' + ('' if len(audit_types) == 2 else ' ' + audit_types[0].lower()) + ' audits were planned for ' + (period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
             bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'},
             tol_lower=100,
-            max_period_msg=' as there may be more audits completed this ' + interval.lower(),
+            min_period_msg=f' as there are no records of audits before this {interval.lower()}',
+            max_period_msg=f' as there may be more audits completed this {interval.lower()}',
             is_pct=True,
             title=('' if len(audit_types) == 2 else audit_types[0] + ' ') + 'Audit Commitment',
             y_label='% planned audits completed',
             label_missing='No planned audits',
         )
-        
-        if plot is not None:
-            st.pyplot(plot[0])
+        if plots is not None:
+            plots.append(plot[0])
+        responsive_columns(plots)

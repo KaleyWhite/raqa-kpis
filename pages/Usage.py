@@ -5,12 +5,13 @@ import streamlit as st
 
 from utils import ALL_PERIODS, PROD_COLORS, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
-from utils.plotting import plot_bar
+from utils.plotting import plot_bar, responsive_columns
 from utils.read_data import read_usage
 from utils.text_fmt import period_str
 
 
-init_page('Usage Volume')
+if __name__ == '__main__':
+    init_page('Usage Volume')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
@@ -40,9 +41,17 @@ if __name__ == '__main__':
             rolling_avg_color=PROD_COLORS[device],
             min_period=min_period, 
             max_period=max_period, 
-            min_period_msg=' as Rad did not start tracking data for ' + device + ' until partway through the ' + interval.lower(), 
-            max_period_msg=' as we don\'t yet have all data for this ' + interval.lower(), 
-            clip_min=0
+            min_period_msg=f' as Rad did not start tracking data for {device} until partway through the {interval.lower()}', 
+            max_period_msg=f' as we don\'t yet have all data for this {interval.lower()}',
+            clip_min=0,
+            title='Usage Volume'
         )
         if plot is not None:
-            st.pyplot(plot[0])
+            fig, ax = plot
+            if ax.get_legend_handles_labels():
+                # Remove the unwanted legend entry
+                handles, labels = ax.get_legend_handles_labels()
+                filtered = [(h, l) for h, l in zip(handles, labels) if l != 'Number Of Runs']
+                ax.legend(*zip(*filtered))  # Update legend with filtered entries
+            
+                responsive_columns([fig])

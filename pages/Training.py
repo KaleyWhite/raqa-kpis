@@ -9,12 +9,13 @@ import streamlit as st
 
 from utils import ALL_PERIODS, PROD_COLORS, RAD_COLOR, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
-from utils.plotting import plot_bar
+from utils.plotting import plot_bar, responsive_columns
 from utils.read_data import read_training
 from utils.text_fmt import period_str
 
 
-init_page('QMS Training')
+if __name__ == '__main__':
+    init_page('QMS Training')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
@@ -85,14 +86,16 @@ def plot_training_completion():
     a histogram showing the distribution of `% Training Complete` across employees.
 
     The plot includes:
-    - X-axis: Percent of training completed (0–100%)
-    - Y-axis: Number of employees
+    - x-axis: Percent of training completed (0–100%)
+    - y-axis: Number of employees
     - Title with the current date
 
     If no training was assigned for the current interval, a message is displayed instead.
 
     Returns:
-        None
+        Optional[Tuple[Figure, Axes]]: A tuple `(fig, ax)` containing the Matplotlib Figure and Axes objects
+           if training data exists for the current period. Returns `None` if no
+           training records are available.
     """
     curr_period_training = dfs_training[interval][dfs_training[interval][interval] == ALL_PERIODS[interval][-1]]
     if len(curr_period_training) == 0:
@@ -108,7 +111,7 @@ def plot_training_completion():
     ax.set_ylabel('# Employees')
     ax.set_title('Training Completion as of ' + datetime.now().strftime('%Y-%m-%d'))
     
-    st.pyplot(fig)
+    return fig, ax
      
      
 df_training_mo = read_training()
@@ -127,6 +130,7 @@ if __name__ == '__main__':
         min_period = df_training_mo[interval].min()
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
 
+        plots = []
         plot = plot_bar(
             PAGE_NAME,
             compute_training_commitment()[interval],
@@ -137,12 +141,15 @@ if __name__ == '__main__':
             bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'},
             tol_lower=80,
             min_period=min_period, 
-            min_period_msg=' as Rad did not implement the current QMS training process until partway through the ' + interval.lower(), 
+            min_period_msg=f' as Rad did not implement the current QMS training process until partway through the {interval.lower()}', 
             is_pct=True,
             title='Training Commitment',
             y_label='% Trainings completed on time'
         )
         if plot is not None:
-            st.pyplot(plot[0])
-
-        plot_training_completion()
+            plots.append(plot[0])
+        plot = plot_training_completion()
+        if plot is not None:
+            plots.append(plot[0])
+        responsive_columns(plots)
+        
