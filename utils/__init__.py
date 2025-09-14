@@ -5,7 +5,9 @@ import random
 from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
 import pandas as pd
+
 import streamlit as st
+from streamlit.errors import StreamlitSetPageConfigMustBeFirstCommandError
 
 
 pd.set_option('future.no_silent_downcasting', True)
@@ -157,7 +159,7 @@ def create_shifted_cmap(cmap_name, shift=None):
 
     Example:
         >>> shifted_cmap = create_shifted_cmap('tab10', shift=3)
-        >>> plt.bar(range(10), [1]*10, color=[shifted_cmap(i) for i in range(10)])
+        >>> plt.bar(range(10), [1] * 10, color=[shifted_cmap(i) for i in range(10)])
     """
     cmap = plt.get_cmap(cmap_name)
     colors = cmap.colors
@@ -184,8 +186,11 @@ def init_page(pg_title):
         None
     """
     if 'page_configured' not in st.session_state:
-        st.set_page_config(page_title=pg_title, layout='wide')
-        st.session_state['page_configured'] = True
+        try:
+            st.set_page_config(page_title=pg_title, layout='wide')
+            st.session_state['page_configured'] = True
+        except StreamlitSetPageConfigMustBeFirstCommandError:
+            pass
 
 
 def show_data_srcs(pg_title='RA/QA KPIs', error_msg=None):
