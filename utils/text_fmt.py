@@ -27,7 +27,7 @@ def items_in_a_series(list, conjunction='and', comma_for_clarity=False):
         return list[0]
     if len(list) == 2:
         return list[0] + (', ' if comma_for_clarity else ' ') + conjunction + ' ' + list[1]
-    return ', '.join(list[:-1]) + ' ' + conjunction + ' ' + list[-1]
+    return ', '.join(list[:-1]) + ', ' + conjunction + ' ' + list[-1]
 
 
 def period_str(period, interval='Month'):
