@@ -5,11 +5,12 @@ import streamlit as st
 from utils import ALL_PERIODS, PROD_COLORS, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.read_data import read_aes
-from utils.plotting import plot_bar
+from utils.plotting import plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
 
-init_page('Adverse Events')
+if __name__ == '__main__':
+    init_page('Adverse Events')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
         
 
@@ -62,8 +63,8 @@ if __name__ == '__main__':
             ae_cts, 
             no_data_msg='No AEs were received by the FDA ' + ('during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
             bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'}, 
-            min_period_msg=' as Rad was not incorporated until until partway through the ' + interval.lower(), 
-            max_period_msg=' as there may be more AEs this ' + interval.lower(), 
+            min_period_msg=f' as Rad was not incorporated until until partway through the {interval.lower()}',
+            max_period_msg=f' as there may be more AEs this {interval.lower()}',
             clip_min=0, 
             clip_max=100,
             title='Adverse Events',
@@ -71,4 +72,4 @@ if __name__ == '__main__':
             y_integer=True
         )
         if plot is not None:
-            st.pyplot(plot[0])
+            responsive_columns([plot[0]])
