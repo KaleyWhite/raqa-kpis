@@ -3,6 +3,7 @@ import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 import textwrap
 
 from utils import ALL_PERIODS, RAD_COLOR, RAD_DATE
@@ -44,7 +45,7 @@ def plot_bar(page_name, data, grouped_data=None, trendline=True, rolling_avg=Tru
             - trendline_color (str): Color for the trendline.
             - rolling_avg_color (str): Color for the rolling average line.
             - msgs (List[str]): Additional footnote-style messages to annotate below the plot.
-            - min_period_msg, max_period_msg (str): Appended to trendline annotation if min/max period is ot used in trendline calculation.
+            - min_period_msg, max_period_msg (str): Appended to trendline annotation if min/max period is not used in trendline calculation.
             - no_data_msg (str): Message shown when data in range is all zero or missing.
             - label_missing (str): Legend entry for the dashes indicating missing values. If not provided, missing values are not indicated.
 
@@ -179,4 +180,79 @@ def plot_bar(page_name, data, grouped_data=None, trendline=True, rolling_avg=Tru
         msg_y -= 0.075
         
     return fig, ax
+
+
+def sync_window_width():
+    """
+    Injects JavaScript to detect browser width and store it in session_state['window_width'].
     
+    Returns:
+        None
+    """
+    components.html(
+        """
+        <script>
+        const streamlitDoc = window.parent.document;
+        function sendWidth() {
+            const width = window.innerWidth;
+            window.parent.postMessage(
+                {isStreamlitMessage: true, type: "streamlit:setComponentValue", value: width},
+                "*"
+            );
+        }
+        window.addEventListener("resize", sendWidth);
+        sendWidth();
+        </script>
+        """,
+        height=0,
+    )
+    if 'component_value' in st.session_state:
+        st.session_state['window_width'] = st.session_state['component_value']
+
+
+def responsive_columns(items=None, threshold=700, ncols=2):
+    """
+    Creates a responsive column layout and optionally renders items into it.
+
+    If the browser window is wider than `threshold`, creates `ncols` columns;
+    otherwise, a single column. If `items` is provided, it distributes and 
+    renders them automatically.
+
+    Parameters
+    ----------
+    items (Optional[List[Any]]): List of things to render. Each item can be:
+        - A `matplotlib` `Figure` (will be shown with `st.pyplot`)
+        - A callable (will be called inside its column)
+        - Any value passed to `st.write`
+        - Any None value is removed before rendering
+    threshold (Optional[float]):
+        Pixel width threshold to switch layouts. Default is 900.
+    ncols (Optional[int]):
+        Number of columns when width > threshold. Default is 2.
+
+    Returns
+    -------
+    List[st.delta_generator.DeltaGenerator]:
+        List of column objects
+    """
+    items = [item for item in items if item is not None]
+    
+    sync_window_width()
+    width = st.session_state.get('window_width', 800)
+
+    if width > threshold and len(items) > 1:
+        cols = st.columns(ncols)
+    else:
+        cols = [st.container()]
+
+    if items:
+        for i, item in enumerate(items):
+            col = cols[i % len(cols)]
+            with col:
+                if isinstance(item, plt.Figure):
+                    st.pyplot(item, use_container_width=True)
+                elif callable(item):
+                    item()
+                else:
+                    st.write(item)
+    return cols
