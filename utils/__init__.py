@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import streamlit as st
-from streamlit.errors import StreamlitSetPageConfigMustBeFirstCommandError
 
 pd.set_option('future.no_silent_downcasting', True)
 
