@@ -32,11 +32,11 @@ def items_in_a_series(list, conjunction='and', comma_for_clarity=False):
 
 def period_str(period, interval='Month'):
     """
-    Formats a `pd.Timestamp` or `pd.Period` object as a string in the format "<month abbreviation> <4-digit year>" or "Q<quarter number> <4-digit year>", depending on the Streamlit session variable `interval`
+    Formats a `pd.Timestamp` or `pd.Period` object as a string in the format "<month abbreviation> <4-digit year>", "Q<quarter number> <4-digit year>", or "<4-digit year>"
 
     Parameters:
         period (Union[pd.Timestamp, pd.Period]): `Timestamp` or `Period` to format as a string
-        interval (str): 'Month' or 'Quarter'. Defaults to 'Month'
+        interval (str): Value from `INTERVALS`. Defaults to 'Month'
 
     Returns:
         str: String version of the period
@@ -45,4 +45,6 @@ def period_str(period, interval='Month'):
         period = period.to_timestamp()
     if interval == 'Month':
         return period.strftime('%b %Y')
-    return f'Q{((period.month - 1) // 3) + 1} {period.year}'
+    if interval == 'Quarter':
+        return f'Q{((period.month - 1) // 3) + 1} {period.year}'
+    return str(period.year)

@@ -3,7 +3,7 @@ import os
 import numpy as np
 import streamlit as st
 
-from utils import PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
+from utils import INTERVALS, PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
 from utils.plotting import plot_bar, responsive_columns
 from utils.filters import render_interval_filter, render_period_filter
 from utils.read_data import read_audits
@@ -16,17 +16,22 @@ PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
 @st.cache_data
-def compute_audits_by_qtr(df_audits_mo):
+def compute_audits_by_qtr_yr(df_audits_mo):
     """
-    Returns numbers of audits, grouped by quarter
+    Returns numbers of audits, grouped by quarter and by year
 
     Parameters:
         df_audits_mo (pd.DataFrame): Audit counts by month
 
     Returns:
-        pd.DataFrame: Audit counts by quarter
+        List[pd.DataFrame, pd.DataFrame]: List of DataFrames—one for each non-month interval in `INTERVALS`
     """
-    return df_audits_mo.groupby(['Quarter', 'Type'], as_index=False).sum(numeric_only=True)  
+    by_period = []
+    for interval_ in INTERVALS:
+        if interval_ != 'Month':
+            by_period.append(df_audits_mo.groupby([interval_, 'Type'], as_index=False).sum(numeric_only=True))
+    df_audits_mo.drop([interval_ for interval_ in INTERVALS if interval_ != 'Month'], axis=1, inplace=True)
+    return by_period 
 
 
 def compute_audit_commitment(interval='Month', filter_by_type=True):
@@ -34,11 +39,11 @@ def compute_audit_commitment(interval='Month', filter_by_type=True):
     Computes the audit commitment percentage over time.
 
     This function calculates the percentage of completed audits relative to the number 
-    of planned audits for each time period (month or quarter).
+    of planned audits for each time period (month, quarter, or year).
     Only considers audits of the user-selected types.
     
     Parameters:
-        interval (Optional[str]): 'Month' or 'Quarter'. Defaults to 'Month'.
+        interval (Optional[str]): Value from `INTERVALS`. Defaults to 'Month'.
         filter_by_type (Optional[bool]): If `True`, considers only the user-selected audit types.
         Defaults to `True`.
 
@@ -96,7 +101,8 @@ def plot_audit_cts():
 
 
 df_audits = read_audits()
-dfs_audits = {'Month': df_audits, 'Quarter': compute_audits_by_qtr(df_audits)}
+by_qtr, by_yr = compute_audits_by_qtr_yr(df_audits)
+dfs_audits = {'Month': df_audits, 'Quarter': by_qtr, 'Year': by_yr}
 
 
 if __name__ == '__main__':

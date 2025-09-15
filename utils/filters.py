@@ -1,12 +1,12 @@
 import pandas as pd
 import streamlit as st
 
-from utils import ALL_PERIODS
+from utils import ALL_PERIODS, INTERVALS
 
 
 def render_interval_filter(page_name, default='Month'):
     """
-    Render a page-specific interval radio button ('Month' or 'Quarter').
+    Render a page-specific interval radio button (value from `INTERVALS`).
 
     Stores the selection in st.session_state using a page-specific key.
     """
@@ -16,7 +16,7 @@ def render_interval_filter(page_name, default='Month'):
 
     st.sidebar.radio(
         'Interval',
-        options=['Month', 'Quarter'],
+        options=INTERVALS,
         key=key
     )
     return st.session_state[key]
@@ -28,7 +28,7 @@ def render_period_filter(page_name, interval='Month', default_start=None, defaul
 
     Parameters:
         page_name (str): Unique identifier for the page.
-        interval (str): 'Month' or 'Quarter'.
+        interval (str): Value from `INTERVALS`.
         default_start (pd.Period): Optional default start period.
         default_end (pd.Period): Optional default end period.
 
@@ -45,7 +45,7 @@ def render_period_filter(page_name, interval='Month', default_start=None, defaul
         default_end = ALL_PERIODS[interval][-1]
     all_periods = pd.period_range(start=default_start, end=default_end, freq=interval[0])
     options = all_periods
-    labels = options.strftime('%b %Y' if interval == 'Month' else 'Q%q %Y')
+    labels = options.strftime('%b %Y' if interval == 'Month' else 'Q%q %Y' if interval == 'Quarter' else '%Y')
     # Initialize defaults only if not already set
     if start_key not in st.session_state or st.session_state[start_key] < options[0]:
         st.session_state[start_key] = default_start

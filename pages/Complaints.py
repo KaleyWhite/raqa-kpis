@@ -3,7 +3,7 @@ import os
 import numpy as np
 import streamlit as st
 
-from utils import ALL_PERIODS, DATE_COLS, PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
+from utils import ALL_PERIODS, DATE_COLS, INTERVALS, PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
 from utils.read_data import read_complaints, read_usage
@@ -17,10 +17,10 @@ PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 def compute_complaint_cts():
     """
-    Computes complaint counts by month and quarter for each complaint-related date field,
+    Computes complaint counts by month, quarter, and year for each complaint-related date field,
     returning total counts and counts grouped by Complaint Status.
 
-    For each interval ('Month', 'Quarter') and complaint date column in `DATE_COLS['Complaint']`:
+    For each interval (Value from `INTERVALS`) and complaint date column in `DATE_COLS['Complaint']`:
         - Groups data by time period and counts total complaints.
         - Groups by both period and "Complaint Status" to count categorized complaints.
 
@@ -32,6 +32,10 @@ def compute_complaint_cts():
                     ...
                 },
                 'Quarter': {
+                    'Complaint Created Date': (total_cts, cts_by_status),
+                    ...
+                },
+                'Year': {
                     'Complaint Created Date': (total_cts, cts_by_status),
                     ...
                 }
@@ -52,7 +56,7 @@ def compute_complaint_cts():
         2016-12       3       0
     """
     complaint_cts = {}
-    for interval_ in ['Month', 'Quarter']:
+    for interval_ in INTERVALS:
         complaint_cts[interval_] = {}
         for col in DATE_COLS['Complaint']:
             period_col = col.replace('Date', interval_)  # e.g., "Complaint Created Date" -> "Complaint Created Month"
@@ -112,7 +116,7 @@ def compute_complaint_commitment(interval='Month', filter_by_device=True):
     Computes complaint commitment (percentage of complaints open for 60 days or fewer) for complaints for the user-selected device, for each period since the first complaint for that device
 
     Parameters:
-        interval (Optional[str]): 'Month' or 'Quarter'. Defaults to 'Month'.
+        interval (Optional[str]): Value from `INTERVALS`. Defaults to 'Month'.
         filter_by_device (Optiona[bool]): If `True`, only consider complaints about the user-selected device. Defaults to `True`.
     
     Returns:

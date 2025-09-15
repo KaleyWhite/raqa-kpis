@@ -30,7 +30,7 @@ def plot_bar(page_name, data, grouped_data=None, trendline=True, rolling_avg=Tru
         trendline (bool): Whether to overlay a dashed linear trendline. Defaults to `True`.
         rolling_avg (bool): Whether to plot a three-period rolling average. Defaults to `True`.
         **kwargs: Additional configuration options including:
-            - interval (str): Time interval name ('Month' or 'Quarter').
+            - interval (str): Time interval name (value from `INTERVALS`).
             - start (Period): Start of plotting range.
             - end (Period): End of plotting range.
             - min_period, max_period (Period): Full extent of data range (for reindexing).

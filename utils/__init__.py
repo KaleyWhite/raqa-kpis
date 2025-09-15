@@ -95,16 +95,31 @@ SRCS = OrderedDict([
 ])
 RAD_COLOR = '#3498db'  # Rad logo color
 RAD_DATE = '2016-10-26'  # Rad incorporation date
-ALL_PERIODS = {  # All months and quarters since Rad incorporation
-    'Month': pd.period_range(start=RAD_DATE, end=datetime.now().strftime('%Y-%m'), freq='M'),
-    'Quarter': pd.period_range(start=RAD_DATE, end=datetime.now().strftime('%Y-%m'), freq='Q')
-}
+INTERVALS = ['Month', 'Quarter', 'Year']
+
+def compute_all_periods():
+    """
+    Compute all available reporting periods since Rad incorporation.
+
+    The function generates period ranges for months, quarters, and years,
+    starting from the RAD incorporation date (`RAD_DATE`) up to the current date.
+
+    Returns:
+        dict[str, pd.PeriodIndex]: A dictionary where keys are values from `INTERVALS`, and values are corresponding PeriodIndex objects covering the
+        full range from `RAD_DATE` through today.
+    """
+    end = datetime.now().strftime('%Y-%m')
+    all_periods = {}
+    for interval_ in INTERVALS:
+        all_periods[interval_] = pd.period_range(start=RAD_DATE, end=end, freq=interval_[0])
+    return all_periods
+ALL_PERIODS = compute_all_periods()
 
 
 # Functions
 
 def add_period_cols(df, cols=None):
-    """Adds columns for the month and quarter in which the date value lies.
+    """Adds columns for the month, quarter, and year in which the date value lies.
 
     Parameters:
         df (pd.DataFrame): `DataFrame` to add the columns to
@@ -115,13 +130,13 @@ def add_period_cols(df, cols=None):
         >>> df['Created Date'] = pd.to_datetime(df['Created Date'])
         >>> add_period_columns(df)
         >>> print(df)
-            Created Date  Created Month Created Quarter
-        0     2023-01-15  2023-01       2023Q1
-        1     2023-04-20  2023-04       2023Q2
+            Created Date  Created Month Created Quarter Created Year
+        0     2023-01-15  2023-01       2023Q1          2023
+        1     2023-04-20  2023-04       2023Q2          2023
     """
     if cols is None:
         cols = [col for col in df.columns if 'Date' in col]
-    for interval_ in ['Month', 'Quarter']:
+    for interval_ in INTERVALS:
         for col in cols:
             df[col.replace('Date', interval_)] = df[col].dt.to_period(interval_[0])
 

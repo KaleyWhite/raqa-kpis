@@ -17,16 +17,16 @@ PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 @ st.cache_data
 def compute_ae_cts():
     """
-    Computes counts of AEs received per month and quarter.
+    Computes counts of AEs received per each interval in `INTERVALS`.
 
-    Groups the `df_aes` DataFrame by the received date column at both monthly and quarterly intervals,
+    Groups the `df_aes` DataFrame by the received date column at each interval in `INTERVALS`,
     then counts the number of AEs per period. Missing periods are filled with 0.
 
     Returns
     -------
     dict[str, pd.Series]
-        A dictionary with keys 'Month' and 'Quarter'. Each value is a Series indexed by period 
-        (month or quarter), with values representing the number of AEs received in that period.
+        A dictionary with keys the values in `INTERVALS`. Each value is a Series indexed by period,
+        with values representing the number of AEs received in that period.
 
     Example
     -------
@@ -40,7 +40,11 @@ def compute_ae_cts():
 
         'Quarter': 
         2024Q1    10
-        Freq: Q-DEC, dtype: int64
+        Freq: Q-DEC, dtype: int64,
+        
+        'Year':
+        2024    10
+        Freq: Y, dtype: int64
     }
     """
     ae_cts = {}

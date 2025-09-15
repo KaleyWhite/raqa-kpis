@@ -2,7 +2,7 @@ import os
 
 import streamlit as st
 
-from utils import ALL_PERIODS, DATE_COLS, init_page, show_data_srcs
+from utils import ALL_PERIODS, DATE_COLS, INTERVALS, init_page, show_data_srcs
 from utils.filters import render_interval_filter, render_period_filter
 from utils.matrix import map_dropdown_ids
 from utils.plotting import plot_bar, responsive_columns
@@ -17,10 +17,10 @@ PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 def compute_capa_cts():
     """
-    Computes CAPA counts by month and quarter for each CAPA-related date field,
+    Computes CAPA counts by month, quarter, and year for each CAPA-related date field,
     returning total counts and counts grouped by Problem Type.
 
-    For each interval ('Month', 'Quarter') and CAPA date column in `DATE_COLS['CAPA']`:
+    For each interval (value in `INTERVALS`) and CAPA date column in `DATE_COLS['CAPA']`:
         - Groups data by time period and counts total CAPAs.
         - Groups by both period and "Problem Type" to count categorized CAPAs.
 
@@ -32,6 +32,10 @@ def compute_capa_cts():
                     ...
                 },
                 'Quarter': {
+                    'Date Created': (total_cts, cts_by_problem_type),
+                    ...
+                },
+                'Year': {
                     'Date Created': (total_cts, cts_by_problem_type),
                     ...
                 }
@@ -52,7 +56,7 @@ def compute_capa_cts():
         2024-03       3       0
     """
     capa_cts = {}
-    for interval_ in ['Month', 'Quarter']:
+    for interval_ in INTERVALS:
         capa_cts[interval_] = {}
         for col in DATE_COLS['CAPA']:
             period_col = col.replace('Date', interval)  # E.g., "Date Created" -> "Month Created"
@@ -68,7 +72,7 @@ def ct_by_submission_date(interval='Month', filter_by_prob_type=True):
     Missing periods are filled with zero.
     
     Parameters:
-        interval (Optional[str]): 'Month' or 'Quarter'. Defaults to 'Month'.
+        interval (Optional[str]): Value from `INTERVALS`. Defaults to 'Month'.
         filter_by_prob_type (Optiona[bool]): If `True`, only consider the CAPAs of the user-selected Problem Types. Defaults to `True`.
 
     Returns:
@@ -88,7 +92,7 @@ def compute_capa_commitment(interval='Month', filter_by_prob_type=True):
     Returns CAPA commitment (percent of CAPAs submitted on or before their due date) for each period in which a CAPA for one of the user-selected problem types was submitted
 
     Parameters:
-        interval (Optional[str]): 'Month' or 'Quarter'. Defaults to 'Month'.
+        interval (Optional[str]): Value from `INTERVALS`. Defaults to 'Month'.
         filter_by_prob_type (Optiona[bool]): If `True`, only consider the CAPAs of the user-selected Problem Types. Defaults to `True`.
     
     Returns:
@@ -113,12 +117,12 @@ def compute_capa_effectiveness(interval='Month', filter_by_prob_type=True):
     Returns CAPA effectiveness (percent of CAPAs that passed effectiveness check) for each period in which a CAPA for one of the user-selected problem types was submitted
 
     Parameters:
-        interval (Optional[str]): 'Month' or 'Quarter'. Defaults to 'Month'.
+        interval (Optional[str]): Value from `INTERVALS`. Defaults to 'Month'.
         filter_by_prob_type (Optiona[bool]): If `True`, only consider the CAPAs of the user-selected Problem Types. Defaults to `True`.
     
     Returns:
         Optional[pd.Series]: CAPA effectiveness for each period, indexed by period
-                   Returns `None` if CAPA data was not retrieved.
+                             Returns `None` if CAPA data was not retrieved.
     """
     if isinstance(df_capas, str):
         return

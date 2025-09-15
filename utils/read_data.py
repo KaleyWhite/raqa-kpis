@@ -5,7 +5,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from utils import DATE_COLS, add_period_cols, correct_date_dtype
+from utils import DATE_COLS, INTERVALS, add_period_cols, correct_date_dtype
 from utils.matrix import get_matrix_items, map_dropdown_ids
 from utils.salesforce import get_sf_records, sf
 
@@ -71,7 +71,7 @@ def read_audits():
     df_audits['Planned'] = df_audits['Planned'].astype(int)
     df_audits['Completed'] = df_audits['Completed'].astype(int)
         
-    for interval_ in ['Month', 'Quarter']:
+    for interval_ in INTERVALS:
         df_audits[interval_] = df_audits['Month'].astype('period[' + interval_[0] + ']')
     
     return df_audits
@@ -154,8 +154,8 @@ def read_training():
     df_training.iloc[:, 2:] = df_training.iloc[:, 2:].map(lambda x: x.split(' (')[0]).astype(int)
     df_training['# Open Trainings Overdue'] = df_training['# Open Trainings'] - df_training['# Open Trainings NOT Overdue']
     df_training['% Training Complete'] = df_training['# Trainings Completed'] / (df_training['# Trainings Completed'] + df_training['# Open Trainings']).replace(0, np.nan) * 100
-    df_training['Quarter'] = df_training['Month'].astype('period[Q]')
-    df_training['Month'] = df_training['Month'].astype('period[M]')
+    for interval_ in INTERVALS:
+        df_training[interval_] = df_training['Month'].astype(f'period[{interval_[0]}]')
     df_training.sort_values(['Month', 'User'], inplace=True)
 
     return df_training
@@ -180,7 +180,7 @@ def read_usage():
     df_usage['Device'] = df_usage['Web Institution Product'].apply(lambda x: x[x.rfind(' - ') + 3:])
     df_usage.drop('Web Institution Product', axis=1, inplace=True)
     
-    df_usage['Month'] = df_usage['Usage Date'].dt.to_period('M')
-    df_usage['Quarter'] = df_usage['Usage Date'].dt.to_period('Q')
+    for interval_ in INTERVALS:
+        df_usage[interval_] = df_usage['Usage Date'].dt.to_period(interval_[0])
     
     return df_usage

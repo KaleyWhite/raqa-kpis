@@ -33,12 +33,11 @@ def compute_commitment(interval='Month'):
     This function calculates individual commitment scores for audits, CAPAs,
     complaints, and training, each weighted according to predefined importance (`COMMITMENT_WTS`)
 
-    The interval (i.e., 'Month' or 'Quarter') is used to group and compute each
+    The interval (i.e., value from `INTERVALS`) is used to group and compute each
     metric. The final commitment score is a weighted average of these components.
 
     Parameters:
-        interval (Optional[str]): The time interval for computation, either 'Month' or 'Quarter'.
-                                  Defaults to 'Month'.
+        interval (Optional[str]): The time interval for computation. Defaults to 'Month'.
 
     Returns:
         Union[Tuple[pd.Series, pd.Period, str], str]: Tuple containing:
