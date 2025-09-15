@@ -250,7 +250,7 @@ def responsive_columns(items=None, threshold=700, ncols=2):
             col = cols[i % len(cols)]
             with col:
                 if isinstance(item, plt.Figure):
-                    st.pyplot(item, use_container_width=True)
+                    st.pyplot(item, stretch=True)
                 elif callable(item):
                     item()
                 else:
