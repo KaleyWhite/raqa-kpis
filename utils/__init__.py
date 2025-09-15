@@ -203,8 +203,8 @@ def init_page(pg_title):
         try:
             st.set_page_config(page_title=pg_title, layout='wide')
             st.session_state['page_configured'] = True
-        except StreamlitSetPageConfigMustBeFirstCommandError:
-            pass
+        except Exception as e:
+            st.write(e)
 
 
 def show_data_srcs(pg_title='RA/QA KPIs', error_msg=None):
