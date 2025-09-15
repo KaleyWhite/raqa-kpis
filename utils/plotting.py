@@ -185,6 +185,7 @@ def plot_bar(page_name, data, grouped_data=None, trendline=True, rolling_avg=Tru
 def sync_window_width():
     """
     Injects JavaScript to detect browser width and store it in session_state['window_width'].
+    Removes the unsightly gap with the "invisible" markdown.
     
     Returns:
         None
@@ -202,6 +203,14 @@ def sync_window_width():
         }
         window.addEventListener("resize", sendWidth);
         sendWidth();
+        
+        var hide_me_list = window.parent.document.querySelectorAll('iframe');
+        for (let i = 0; i < hide_me_list.length; i++) { 
+            if (hide_me_list[i].height == 0) {
+                hide_me_list[i].parentNode.style.height = 0;
+                hide_me_list[i].parentNode.style.marginBottom = '-1rem';
+            };
+        };
         </script>
         """,
         height=0,
@@ -250,7 +259,7 @@ def responsive_columns(items=None, threshold=700, ncols=2):
             col = cols[i % len(cols)]
             with col:
                 if isinstance(item, plt.Figure):
-                    st.pyplot(item, stretch=True)
+                    st.pyplot(item, bbox_inches='tight')
                 elif callable(item):
                     item()
                 else:
