@@ -54,7 +54,7 @@ def compute_commitment(interval='Month'):
     }
     min_period = min_period_category = None
     for category, commitment in commitments.items():
-        if min_period is None or commitment.index[0] > min_period:
+        if commitment is not None and (min_period is None or commitment.index[0] > min_period):
             min_period = commitment.index[0]
             min_period_category = category
     no_data_for = sorted(record_type for record_type, data in commitments.items() if data is None)
