@@ -1,5 +1,8 @@
+from collections import OrderedDict
+
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
+from jira import JIRA
 import numpy as np
 import pandas as pd
 import requests
@@ -115,6 +118,53 @@ def read_complaints():
     add_period_cols(df_complaints, DATE_COLS['Complaint'])
     
     return df_complaints
+
+
+@st.cache_data
+def read_dev_tickets():
+    def stop_checking_history(issue):
+        return not pd.isna(issue['Start Date']) and (issue['Status'] != 'Done' or not pd.isna(issue['Start Date']))
+    
+    PROJECT_KEYS = {key: None for key in ['AC', 'CALC', 'CC', 'CH', 'EZF', 'QC', 'RAM', 'RO']}
+    issue_dicts = []
+    jira = JIRA(basic_auth=tuple(st.secrets['jira']['basic_auth']), server=st.secrets['jira']['server'])
+    for key in PROJECT_KEYS:
+        issues = jira.search_issues(
+            f'project={key} AND (type=Bug OR type=CVE OR type=Feature OR type="Feature HLD" OR type="Tech Debt" OR type="Tech debt")',
+            maxResults=5000,
+            fields=['assignee', 'created', 'duedate', 'issuetype', 'priority', 'project', 'status'],
+            properties=['id'],
+            expand='changelog'   
+        )
+        for issue in issues:
+            issue_dict = OrderedDict([
+                ('ID', issue.id),
+                ('Creation Date', issue.fields.created),
+                ('Device', issue.fields.project.name),
+                ('Done Date', pd.NaT),
+                ('Due Date', issue.fields.duedate),  # Need to populate this more often so we can compute % completed on time
+                ('Priority', 'Medium' if issue.fields.priority.name == 'Normal' else issue.fields.priority.name),
+                ('Start Date', pd.NaT),
+                ('Status', issue.fields.status.name),
+                ('Type', 'Feature' if issue.fields.issuetype.name.startswith('Feature') else 'Tech Debt' if issue.fields.issuetype.name.lower() == 'tech debt' else issue.fields.issuetype.name),
+            ])
+            if issue_dict['Status'] != 'To Do':
+                for history in issue.changelog.histories:
+                    if stop_checking_history(issue_dict):
+                        break
+                    for item in history.items:
+                        if stop_checking_history(issue_dict):
+                            break
+                        if item.field == 'status':
+                            if item.toString == 'In Progress':
+                                issue_dict['Start Date'] = history.created
+                            elif item.toString == 'Done':
+                                issue_dict['Done Date'] = history.created
+            issue_dicts.append(issue_dict)
+    issue_df = correct_date_dtype(pd.DataFrame.from_records(issue_dicts, index='ID'))
+    add_period_cols(issue_df)
+    issue_df['Completion Time'] = issue_df['Done Date'] - issue_df['Start Date']
+    return issue_df
 
 
 def read_gsheet(sheet_name):
