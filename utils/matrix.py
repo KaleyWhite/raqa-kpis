@@ -9,7 +9,7 @@ import streamlit as st
 # Constants
 
 MATRIX_HEADERS = {
-    'authorization': 'Token ' + st.secrets['MATRIX_TOKEN'], 
+    'authorization': 'Token ' + st.secrets['matrix']['token'], 
     #'Content-Type': 'application/json',
     'accept': 'application/json'
 }
@@ -76,25 +76,37 @@ def get_matrix_items(category):
     return pd.DataFrame.from_records(item_dicts)
 
 
-def map_dropdown_ids(dropdown_key):
+def map_dropdown_ids(dropdown_keys):
     """
-    Fetches and maps the IDs to labels for a specific dropdown in the Matrix QMS project settings
-    (see https://radformation.matrixreq.com/adminConfig/QMS-projectsettings-dropddowns).
+    Fetches and maps option IDs to their human-readable labels for specific dropdowns
+    in the Matrix QMS project settings.
 
-    This function queries the Matrix QMS API for all settings, extracts the JSON options
-    for the dropdown identified by `dropdown_key`, and returns a dictionary mapping each
-    option's ID to its human-readable label.
+    This function queries the Matrix QMS API for all project settings, extracts the JSON options
+    for each dropdown identified by a key in `dropdown_keys`, and returns a dictionary mapping
+    each option's ID to its label.
 
     Parameters:
-        dropdown_key (str): The key identifying the dropdown in the QMS project settings.
+        dropdown_keys (list[str]): List of keys identifying the dropdowns in the QMS project settings.
 
     Returns:
-        dict: A dictionary mapping each option's ID (str) to its label (str).
+        dict[str, dict[str, str]]: A dictionary where each key is a dropdown key, and the value
+        is another dictionary mapping option IDs (as strings) to their labels (as strings).
+
+    Example:
+        >>> map_dropdown_ids(['deviceType', 'priority'])
+        {
+            'deviceType': {'1': 'Device A', '2': 'Device B'},
+            'priority': {'10': 'High', '20': 'Medium', '30': 'Low'}
+        }
     """
+    dd_ids = {}
     stgs = requests.get(
         f'{QMS_URL}/setting',
         headers=MATRIX_HEADERS
     ).json()
-    dd_options = next(dict['value'] for dict in stgs['settingList'] if dict['key'] == dropdown_key)
-    dd_options = json.loads(dd_options)['options']
-    return {option['id']: option['label'] for option in dd_options}
+    for setting in stgs['settingList']:
+        if setting['key'] in dropdown_keys:
+            dd_options = json.loads(setting['value'])['options']
+            dd_ids[setting['key']] = {option['id']: option['label'] for option in dd_options}
+    return dd_ids
+
