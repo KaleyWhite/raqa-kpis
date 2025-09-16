@@ -136,6 +136,6 @@ if __name__ == '__main__':
             y_label='% planned audits completed',
             label_missing='No planned audits',
         )
-        if plots is not None:
+        if plot is not None:
             plots.append(plot[0])
         responsive_columns(plots)
