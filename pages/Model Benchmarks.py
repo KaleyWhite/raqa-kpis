@@ -6,16 +6,16 @@ import numpy as np
 import streamlit as st
 
 from read_data.read_benchmarks import read_benchmark_data
-from utils import compute_cts, compute_bin_width, init_page, show_data_srcs
-from utils.constants import RAD_COLOR, PROD_COLORS
+from utils import compute_bin_width, init_page, show_data_srcs, suppress_warnings
 from utils.filters import render_breakdown_fixed
-from utils.plotting import plot_bar, responsive_columns
+from utils.plotting import responsive_columns
 from utils.settings import get_settings
 
 
 if __name__ == '__main__':
     init_page('Model Benchmarks')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
+suppress_warnings()
 
 
 if __name__ == '__main__':

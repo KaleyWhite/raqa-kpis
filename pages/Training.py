@@ -11,7 +11,7 @@ import pandas as pd
 import streamlit as st
 
 from read_data.read_training import read_training_data
-from utils import init_page, show_data_srcs
+from utils import init_page, show_data_srcs, suppress_warnings
 from utils.constants import ALL_PERIODS, INTERVALS, PROD_COLORS, RAD_COLOR
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
@@ -21,6 +21,7 @@ from utils.text_fmt import period_str
 if __name__ == '__main__':
     init_page('QMS Training')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
+suppress_warnings()
 
 
 @st.cache_data

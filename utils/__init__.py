@@ -12,12 +12,6 @@ import streamlit as st
 from utils.constants import ALL_PERIODS, DATE_COLS, SRCS
 from utils.settings import get_settings
 
-pd.set_option('future.no_silent_downcasting', True)
-warnings.filterwarnings(
-    'ignore',
-    message=r".*was created with a default value but also had its value set via the Session State API.*",
-)
-
 
 def compute_bin_width(data_series_list: List[pd.Series]) -> float:
     """
@@ -238,3 +232,18 @@ def show_data_srcs(pg_title: str = 'RA/QA KPIs', error_msg: Optional[str] = None
             html += f'<br><br><span style="color:red;font-weight:bold;">{error_msg}</span>'
         st.html(html)
       
+    
+def suppress_warnings() -> None:
+    """
+    Suppresses specific pandas and Streamlit warnings.
+
+    - Sets the pandas option `future.no_silent_downcasting` to True.
+    - Ignores Streamlit warnings related to widgets being initialized with both a default value
+      and a session state assignment.
+    """
+    pd.set_option('future.no_silent_downcasting', True)
+    warnings.filterwarnings(
+        'ignore',
+        message=r".*was created with a default value but also had its value set via the Session State API.*",
+    )
+    

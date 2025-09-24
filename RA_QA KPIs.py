@@ -9,7 +9,7 @@ from pages.CAPAs import compute_capa_commitment
 from pages.Complaints import compute_complaint_commitment
 from pages.Training import compute_training_commitment
 
-from utils import create_shifted_cmap, init_page, show_data_srcs
+from utils import create_shifted_cmap, init_page, show_data_srcs, suppress_warnings
 from utils.constants import RAD_COLOR
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
@@ -25,6 +25,7 @@ COMMITMENT_WTS = OrderedDict([
     ('Complaints', 0.35),
     ('Training', 0.2),
 ])
+suppress_warnings()
     
 
 def compute_commitment(interval='Month'):
