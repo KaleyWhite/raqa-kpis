@@ -1,6 +1,6 @@
 from datetime import datetime
 import os
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
