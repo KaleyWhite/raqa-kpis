@@ -1,25 +1,14 @@
 import json
+from typing import Dict, List, Union
 
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
-import streamlit as st
+
+from utils.constants import MATRIX_HEADERS, QMS_URL
 
 
-# Constants
-
-MATRIX_HEADERS = {
-    'authorization': 'Token ' + st.secrets['matrix']['token'], 
-    #'Content-Type': 'application/json',
-    'accept': 'application/json'
-}
-MATRIX_URL = 'https://radformation.matrixreq.com'
-QMS_URL = MATRIX_URL + '/rest/1/QMS'
-
-
-# Functions
-
-def get_matrix_items(category):
+def get_matrix_items(category: str) -> Union[pd.DataFrame, str]:
     """
     Retrieves and processes item data from the Matrix QMS API for a given category.
 
@@ -34,7 +23,8 @@ def get_matrix_items(category):
 
     Returns:
         Union[pd.DataFrame, str]: A `DataFrame` where each row represents an item in the category, 
-            with columns for ID, Title, and all relevant field values, or an error message string if could not connect to Matrix
+            with index ID and columns for Title, and all relevant field values, or an error message 
+            string if could not connect to Matrix.
 
     Raises:
         Exception: If authentication with the Matrix API fails due to an invalid or missing token.
@@ -69,14 +59,14 @@ def get_matrix_items(category):
             item_dict = {'ID': item_ref, 'Title': item['title']}
             for fld_val in item['fieldValList']['fieldVal']:
                 item_dict[ids_names[fld_val['id']]] = BeautifulSoup(fld_val['value'], 'html.parser').text if fld_val['id'] in richtext else fld_val['value']
-                item_dicts.append(item_dict)
+            item_dicts.append(item_dict)
     except Exception as e:
         return 'Could not retrieve data from Matrix.<br>' + str(e)
     
-    return pd.DataFrame.from_records(item_dicts)
+    return pd.DataFrame.from_records(item_dicts, index='ID')
 
 
-def map_dropdown_ids(dropdown_keys):
+def map_dropdown_ids(dropdown_keys: List[str]) -> Dict[str, Dict[str, str]]:
     """
     Fetches and maps option IDs to their human-readable labels for specific dropdowns
     in the Matrix QMS project settings.
@@ -89,8 +79,8 @@ def map_dropdown_ids(dropdown_keys):
         dropdown_keys (list[str]): List of keys identifying the dropdowns in the QMS project settings.
 
     Returns:
-        dict[str, dict[str, str]]: A dictionary where each key is a dropdown key, and the value
-        is another dictionary mapping option IDs (as strings) to their labels (as strings).
+        Dict[str, Dict[str, str]]: A dictionary where each key is a dropdown key, and the value
+            is another dictionary mapping option IDs (as strings) to their labels (as strings).
 
     Example:
         >>> map_dropdown_ids(['deviceType', 'priority'])
@@ -99,7 +89,7 @@ def map_dropdown_ids(dropdown_keys):
             'priority': {'10': 'High', '20': 'Medium', '30': 'Low'}
         }
     """
-    dd_ids = {}
+    dd_ids: Dict[str, Dict[str, str]] = {}
     stgs = requests.get(
         f'{QMS_URL}/setting',
         headers=MATRIX_HEADERS
@@ -109,4 +99,3 @@ def map_dropdown_ids(dropdown_keys):
             dd_options = json.loads(setting['value'])['options']
             dd_ids[setting['key']] = {option['id']: option['label'] for option in dd_options}
     return dd_ids
-

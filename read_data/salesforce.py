@@ -1,4 +1,5 @@
 import re
+from typing import List, Optional
 
 import pandas as pd
 from simple_salesforce import Salesforce
@@ -6,17 +7,13 @@ import streamlit as st
 
 
 try:
-    sf = Salesforce(
-        username=st.secrets['SF_USER'],
-        password=st.secrets['SF_PWD'],
-        security_token=st.secrets['SF_TOKEN'],
-        instance='radformation.my.salesforce.com'
-    )
-except:
+    sf = Salesforce( **st.secrets['salesforce'])
+except Exception as e:
+    st.write(e)
     sf = None
     
-    
-def get_sf_records(obj, flds=None):
+
+def get_sf_records(obj: str, flds: Optional[List[str]] = None) -> Optional[pd.DataFrame]:
     """
     Retrieves and formats Salesforce records of the given object type.
 
@@ -32,25 +29,29 @@ def get_sf_records(obj, flds=None):
 
     Parameters:
         obj (str): The name of the Salesforce object to query (e.g., 'Account', 'Case').
-        flds (Optional[List[str]]): A list of field names to retrieve. If `None`, all fields are fetched.
+        flds (Optional[List[str]], optional): A list of field names to retrieve. Defaults to `None`,
+            in which case all fields are fetched.
 
     Returns:
         Optional[pd.DataFrame]: A `DataFrame` containing the queried records with human-readable column names,
-        or `None` if could not connect to Salesforce.
+        or `None` if Salesforce connection is unavailable.
     """
-    def human_friendly(key):
+    def human_friendly(key: str) -> str:
         no_custom_suffix = re.sub(r'__c$', r'', key)
         no_underscores = re.sub(r'_+', r' ', no_custom_suffix)
         no_camel_case = re.sub(r'([a-z])([A-Z])', r'\g<1> \g<2>', no_underscores)
         return no_camel_case
+
     if sf is None:
-        return
+        return None
+
     if flds is None:
         res = sf.query_all(f'SELECT FIELDS(ALL) FROM {obj} LIMIT 1')
         flds = [k for k in res['records'][0] if k != 'attributes']
-    records = []
+
+    records: List[dict] = []
     for record in sf.query_all_iter(f'SELECT {",".join(flds)} FROM {obj}'):
-        record_dict = {}
+        record_dict: dict = {}
         for fld in flds:
             val = record[fld]
             human_fld = human_friendly(fld)
@@ -59,6 +60,7 @@ def get_sf_records(obj, flds=None):
                     human_k = human_friendly(k)
                     record_dict[human_fld + ' ' + human_k] = v
             else:
-                record_dict[human_fld] = val 
+                record_dict[human_fld] = val
         records.append(record_dict)
+
     return pd.DataFrame.from_records(records)

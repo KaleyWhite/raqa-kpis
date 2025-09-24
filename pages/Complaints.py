@@ -1,12 +1,16 @@
 import os
+from typing import List, Optional, Tuple
 
 import numpy as np
+import pandas as pd
 import streamlit as st
 
-from utils import ALL_PERIODS, DATE_COLS, INTERVALS, PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
-from utils.filters import render_interval_filter, render_period_filter
+from read_data.read_complaints import read_complaint_data
+from read_data.read_usage import read_usage_data
+from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
+from utils.constants import ALL_PERIODS, DATE_COLS
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
-from utils.read_data import read_complaints, read_usage
 from utils.text_fmt import period_str
 
 
@@ -15,163 +19,152 @@ if __name__ == '__main__':
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
-def compute_complaint_cts():
+def compute_complaint_pct_ratio() -> Optional[Tuple[pd.Series, pd.Series, pd.Period, List[str]]]:
     """
-    Computes complaint counts by month, quarter, and year for each complaint-related date field,
-    returning total counts and counts grouped by Complaint Status.
+    Computes complaint percentage and complaint-to-user ratio for each period.
 
-    For each interval (Value from `INTERVALS`) and complaint date column in `DATE_COLS['Complaint']`:
-        - Groups data by time period and counts total complaints.
-        - Groups by both period and "Complaint Status" to count categorized complaints.
+    Calculates:
+    - Complaint percentage relative to device usage (complaints per 100 runs).
+    - Complaint ratio (complaints per unique account).
 
-    Returns:
-        dict[str, dict[str, tuple[pd.Series, pd.DataFrame]]]: Nested dictionary:
-            {
-                'Month': {
-                    'Complaint Created Date': (total_cts, cts_by_status),
-                    ...
-                },
-                'Quarter': {
-                    'Complaint Created Date': (total_cts, cts_by_status),
-                    ...
-                },
-                'Year': {
-                    'Complaint Created Date': (total_cts, cts_by_status),
-                    ...
-                }
-            }
+    Aligns complaint and usage data by period and restricts calculations to periods with non-zero usage.
+    Adjusts the start period if usage tracking had not yet begun, and returns explanatory messages.
 
-    Example:
-        >>> complaint_cts = compute_complaint_counts()
-        >>> complaint_cts['Month']['Complaint Created Date'][0]  # Total complaints created each month
-        2016-10    2
-        2016-11    5
-        2016-12    3
-        Freq: M, dtype: int64
-
-        >>> complaint_cts['Month']['Date Created'][1]  # Complaints created by status
-                   Open  Closed
-        2016-10       1       1
-        2016-11       4       1
-        2016-12       3       0
+    Returns
+    -------
+    Optional[Tuple[pd.Series, pd.Series, pd.Period, List[str]]]:
+        complaint_pct (pd.Series): Percentage of complaints per usage (complaints / runs * 100).
+        complaint_ratio (pd.Series): Number of complaints per unique user (account).
+        pct_ratio_start (pd.Period): The period from which complaint percentage/ratio is valid.
+        msgs (List[str]): Informational messages about skipped periods due to lack of usage data.
+        Returns None if there is no usage data during the user-selected time interval.
     """
-    complaint_cts = {}
-    for interval_ in INTERVALS:
-        complaint_cts[interval_] = {}
-        for col in DATE_COLS['Complaint']:
-            period_col = col.replace('Date', interval_)  # e.g., "Complaint Created Date" -> "Complaint Created Month"
-            total_cts = filtered_df_complaints_device.groupby(period_col).size().reindex(ALL_PERIODS[interval_], fill_value=0)  # Overall # CAPAs opened/due/submitted/approved during the user-selected time interval
-            cts_by_status = filtered_df_complaints_device.groupby([period_col, 'Complaint Status']).size().unstack().reindex(ALL_PERIODS[interval_], fill_value=0)  # # CAPAs opened/due/submitted/approved during the user-selected time interval, by type
-            complaint_cts[interval_][col] = (total_cts, cts_by_status)
-    return complaint_cts
+    msgs: List[str] = []
 
+    if 'Complaints_Device_filter' in st.session_state:
+        data_usage_device = data_usage[data_usage['Device'].isin(st.session_state['Complaints_Device_filter'])]
+    else:  # Device is not filtered
+        data_usage_device = data_usage
 
-def compute_complaint_pct_ratio():
-    """
-    Computes complaint percentage and complaint-to-user ratio for the user-selected device for each period.
-
-    This function calculates:
-    - The percentage of complaints relative to device usage (complaints per 100 runs).
-    - The complaint ratio (complaints per unique account).
-    
-    It adjusts the start period if usage tracking had not yet begun for the selected device, and 
-    returns explanatory messages accordingly. Complaint and usage data are aligned by period, 
-    and calculations are restricted to periods where usage is non-zero.
-
-    Returns:
-        tuple:
-            - complaint_pct (pd.Series): Percentage of complaints per usage (complaints / runs * 100).
-            - complaint_ratio (pd.Series): Number of complaints per unique user (account).
-            - pct_ratio_start (pd.Period): The period from which complaint percentage/ratio is valid.
-            - msgs (list of str): Informational messages about skipped periods due to lack of usage data.
-    """
-    msgs = []
-    
-    data_usage = read_usage()
-    data_usage_device = data_usage[data_usage['Device'] == device]
     min_usage_period = data_usage_device[interval].min()
     pct_ratio_start = start
     if pct_ratio_start <= min_usage_period:
-        msgs.append('Complaint percentage is not calculated for ' + interval.lower() + 's before ' + period_str(min_usage_period + 1, interval) + ' as Rad did not begin tracking ' + device + ' usage until ' + period_str(min_usage_period, interval) + '.')
+        msgs.append(
+            'Complaint percentage is not calculated for ' + interval.lower() + 
+            's before ' + period_str(min_usage_period + 1, interval) +
+            ' as Rad did not begin tracking usage for the selected devices until ' +
+            period_str(min_usage_period, interval) + '.'
+        )
         pct_ratio_start = min_usage_period + 1
-    usage_by_period = data_usage_device.groupby(interval)['Number Of Runs'].sum().reindex(ALL_PERIODS[interval], fill_value=0)
+
+    usage_by_period = data_usage_device.groupby(interval)['Number Of Runs'].sum().reindex(
+        ALL_PERIODS[interval], fill_value=0
+    )
     usage_by_period_filtered = usage_by_period[pct_ratio_start:end]
-    total_cts, _ = compute_complaint_cts()[interval]['Complaint Created Date']
-    # Crop complaint count & usage data starting at first period w/ any usage
+
+    total_cts, _ = compute_cts('Complaints', filtered_df_complaints)['Complaint Created Date']
+
+    # Check for non-zero usage
     nonzero_idx = usage_by_period_filtered[usage_by_period_filtered > 0].index
     if len(nonzero_idx) == 0:
-        return
+        return None
+
     complaint_pct = total_cts / usage_by_period * 100
 
-    accts_by_period = data_usage_device.groupby(interval)['Account'].nunique().reindex(ALL_PERIODS[interval], fill_value=0)  # Salesforce accounts ("users") for each period
-    complaint_ratio = total_cts / accts_by_period  # # complaints / # users
+    accts_by_period = data_usage_device.groupby(interval)['Account'].nunique().reindex(
+        ALL_PERIODS[interval], fill_value=0
+    )
+    complaint_ratio = total_cts / accts_by_period
+
     if pct_ratio_start != start:
-        msgs.append('Complaint ratio is not calculated for ' + interval.lower() + 's before ' + period_str(min_usage_period + 1, interval) + ' as Rad did not begin tracking ' + device + ' usage until ' + period_str(min_usage_period, interval) + '.') 
+        msgs.append(
+            'Complaint ratio is not calculated for ' + interval.lower() +
+            's before ' + period_str(min_usage_period + 1, interval) +
+            ' as Rad did not begin tracking usage for the selected devices until ' +
+            period_str(min_usage_period, interval) + '.'
+        )
 
     return complaint_pct, complaint_ratio, pct_ratio_start, msgs
 
 
-def compute_complaint_commitment(interval='Month', filter_by_device=True):
+def compute_complaint_commitment(
+    interval: Optional[str] = 'Month',
+    filter_by_device: bool = True
+) -> Optional[pd.Series]:
     """
-    Computes complaint commitment (percentage of complaints open for 60 days or fewer) for complaints for the user-selected device, for each period since the first complaint for that device
+    Computes complaint commitment, defined as the percentage of complaints 
+    that were open for 60 days or fewer, for complaints of the user-selected device,
+    for each period since the first complaint for that device.
 
-    Parameters:
-        interval (Optional[str]): Value from `INTERVALS`. Defaults to 'Month'.
-        filter_by_device (Optiona[bool]): If `True`, only consider complaints about the user-selected device. Defaults to `True`.
-    
-    Returns:
-        Optional[pd.Series]: Complaint commitment for each period, indexed by period,
-        or `None` if complaint data was not retrieved
+    Parameters
+    ----------
+    interval (Optional[str]): Time interval to group by ('Month', 'Quarter', 'Year'). Defaults to 'Month'.
+    filter_by_device (bool): If True, only consider complaints for the user-selected device. Defaults to True.
+
+    Returns
+    -------
+    Optional[pd.Series]: Series indexed by period, containing complaint commitment percentages.
+                         Returns None if `df_complaints` is not available.
     """
     if isinstance(df_complaints, str):
-        return
-    df_complaints_ = filtered_df_complaints_device if filter_by_device else df_complaints
-    cts_by_period = df_complaints_.groupby('Completed ' + interval).size().reindex(ALL_PERIODS[interval], fill_value=0)
-    cts_le60_by_period = df_complaints_[df_complaints_['# Days Open'] <= 60].groupby('Completed ' + interval).size().reindex(ALL_PERIODS[interval], fill_value=0)
+        return None
+
+    df_complaints_ = filtered_df_complaints.copy() if filter_by_device else df_complaints.copy()
+
+    period_col = 'Completed ' + interval
+    cts_by_period = df_complaints_.groupby(period_col).size().reindex(ALL_PERIODS[interval], fill_value=0)
+    cts_le60_by_period = df_complaints_[df_complaints_['# Days Open'] <= 60].groupby(period_col).size().reindex(ALL_PERIODS[interval], fill_value=0)
+
     commitment = cts_le60_by_period / cts_by_period.replace(0, np.nan) * 100
-    
+
     return commitment
 
 
-df_complaints = read_complaints()
-    
+df_complaints = read_complaint_data()
+
 
 if __name__ == '__main__':    
     st.title('Complaints')
-    show_data_srcs('Complaints', df_complaints if isinstance(df_complaints, str) else None)
+    data_usage = read_usage_data()
+    data_src_msg = None
+    if isinstance(df_complaints, str):
+        if isinstance(data_usage, str):
+            data_src_msg = 'Could not retrieve complaint or usage data from Salesforce.'
+        else:
+            data_src_msg = 'Could not retrieve complaint data from Salesforce.'
+    elif isinstance(data_usage, str):
+         data_src_msg = 'Could not retrieve usage data from Salesforce.'
+    show_data_srcs('Complaints', data_src_msg)
+    
     if not isinstance(df_complaints, str):
-        plots = []
+        to_display = []
         
-        all_devices = sorted(df_complaints['Device Type'].unique(), key=lambda dev: (dev == 'N/A', dev))
-        device = st.selectbox('Select Device', all_devices, key='device')
-        filtered_df_complaints_device = df_complaints[df_complaints['Device Type'] == device]
         interval = render_interval_filter(PAGE_NAME)
-        min_period = filtered_df_complaints_device[list(DATE_COLS['Complaint'])].min().min().to_period(interval[0])
+        min_period = df_complaints[list(DATE_COLS['Complaints'])].min().min().to_period(interval[0])
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
 
-        complaint_cts = compute_complaint_cts()[interval]
-        for col in DATE_COLS['Complaint']:
+        filtered_df_complaints = render_breakdown_fixed('Complaints', df_complaints)
+
+        period_string = ' in ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)
+        complaint_cts = compute_cts('Complaints', filtered_df_complaints)
+        for col, short in DATE_COLS['Complaints'].items():
             total_cts, cts_by_status = complaint_cts[col]
             plot = plot_bar(
                 PAGE_NAME,
                 total_cts,
                 grouped_data=cts_by_status,
-                no_data_msg='No ' + ('non-device' if device == 'N/A' else device) + (' complaint investigations were completed' if col == 'Investigation Completed Date' else ' complaints were ' + DATE_COLS['Complaint'][col].lower()) + (' in ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
                 bar_kwargs={'stacked': True, 'colormap': create_shifted_cmap('tab10', 4)},
-                trendline_color=PROD_COLORS[device],
                 min_period=min_period, 
                 min_period_msg=' as Rad did not implement the current complaint process until partway through the ' + interval.lower(), 
-                max_period_msg=' as there may be more ' + ('complaint investigations completed' if col == 'Investigation Completed Date' else 'complaints ' + DATE_COLS['Complaint'][col].lower()) + ' this ' + interval.lower(), 
+                max_period_msg=' as there may be more ' + ('complaint investigations completed' if col == 'Investigation Completed Date' else 'complaints ' + DATE_COLS['Complaints'][col].lower()) + ' this ' + interval.lower(), 
                 clip_min=0,
-                rolling_avg_color=PROD_COLORS[device],
-                title='# Complaint Investigations Completed' if col == 'Investigation Completed Date' else '# Complaints ' + DATE_COLS['Complaint'][col],
+                title='# Complaint Investigations Completed' if col == 'Investigation Completed Date' else '# Complaints ' + DATE_COLS['Complaints'][col],
                 y_label='# complaints',
                 y_integer=True
             )
-            if plot is not None:
-                plots.append(plot[0])
+            to_display.append(f'No complaints meeting the specified criteria were {short.lower()} {period_string}.'if plot is None else plot[0])
 
-        if device != 'N/A':
+        if not isinstance(data_usage, str):
             complaint_pct_ratio = compute_complaint_pct_ratio()
             if complaint_pct_ratio is None:
                 st.write('Cannot compute complaint percentage or complaint ratio as there is no usage data ' + ('during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.')
@@ -181,9 +174,6 @@ if __name__ == '__main__':
                     PAGE_NAME,
                     complaint_pct, 
                     start=pct_ratio_start.asfreq(interval[0]),
-                    bar_kwargs={'color': PROD_COLORS[device]},
-                    trendline_color=PROD_COLORS[device],
-                    rolling_avg_color=PROD_COLORS[device],
                     msgs=[msgs[0]],
                     max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
                     clip_min=0, 
@@ -192,14 +182,11 @@ if __name__ == '__main__':
                     y_label='% complaints'
                 )
                 if plot is not None:
-                    plots.append(plot[0])
+                    to_display.append(plot[0])
                 plot = plot_bar(
                     PAGE_NAME,
                     complaint_ratio, 
                     start=pct_ratio_start.asfreq(interval[0]),
-                    bar_kwargs={'color': PROD_COLORS[device]},
-                    trendline_color=PROD_COLORS[device],
-                    rolling_avg_color=PROD_COLORS[device],
                     msgs=[msgs[1]],
                     max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
                     clip_min=0, 
@@ -208,15 +195,12 @@ if __name__ == '__main__':
                     y_label='# complaints'
                 )
                 if plot is not None:
-                    plots.append(plot[0])
+                    to_display.append(plot[0])
 
         plot = plot_bar(
             PAGE_NAME,
             compute_complaint_commitment(interval),
-            bar_kwargs={'color': PROD_COLORS[device]},
             max_period_msg=' as there may be more complaints closed this ' + interval.lower(), 
-            trendline_color=PROD_COLORS[device],
-            rolling_avg_color=PROD_COLORS[device],
             is_pct=True,
             title='Complaint Commitment',
             x_label='Closure ' + interval,
@@ -224,6 +208,6 @@ if __name__ == '__main__':
             label_missing='No complaints received'
         )
         if plot is not None:
-            plots.append(plot[0])
+            to_display.append(plot[0])
         
-        responsive_columns(plots)
+        responsive_columns(to_display)

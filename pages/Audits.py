@@ -1,12 +1,15 @@
 import os
+from typing import Optional
 
-import numpy as np
+import pandas as pd
 import streamlit as st
 
-from utils import INTERVALS, PROD_COLORS, create_shifted_cmap, init_page, show_data_srcs
+from read_data.read_audits import read_audit_data
+from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
+from utils.constants import PROD_COLORS
 from utils.plotting import plot_bar, responsive_columns
-from utils.filters import render_interval_filter, render_period_filter
-from utils.read_data import read_audits
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
+from utils.settings import get_settings
 from utils.text_fmt import period_str
 
 
@@ -15,94 +18,47 @@ if __name__ == '__main__':
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
-@st.cache_data
-def compute_audits_by_qtr_yr(df_audits_mo):
-    """
-    Returns numbers of audits, grouped by quarter and by year
-
-    Parameters:
-        df_audits_mo (pd.DataFrame): Audit counts by month
-
-    Returns:
-        List[pd.DataFrame, pd.DataFrame]: List of DataFrames—one for each non-month interval in `INTERVALS`
-    """
-    by_period = []
-    for interval_ in INTERVALS:
-        if interval_ != 'Month':
-            by_period.append(df_audits_mo.groupby([interval_, 'Type'], as_index=False).sum(numeric_only=True))
-    df_audits_mo.drop([interval_ for interval_ in INTERVALS if interval_ != 'Month'], axis=1, inplace=True)
-    return by_period 
-
-
-def compute_audit_commitment(interval='Month', filter_by_type=True):
+def compute_audit_commitment(
+    interval: str = 'Month', 
+    filter_by_type: bool = True
+) -> Optional[pd.Series]:
     """
     Computes the audit commitment percentage over time.
 
-    This function calculates the percentage of completed audits relative to the number 
-    of planned audits for each time period (month, quarter, or year).
-    Only considers audits of the user-selected types.
-    
-    Parameters:
-        interval (Optional[str]): Value from `INTERVALS`. Defaults to 'Month'.
-        filter_by_type (Optional[bool]): If `True`, considers only the user-selected audit types.
-        Defaults to `True`.
+    The audit commitment is defined as the percentage of audits that were started
+    in the same period as planned. Only audits of user-selected types are included 
+    if `filter_by_type` is True.
 
-    Returns:
-        Optional[pd.Series]: A `Series` indexed by period, 
-        containing the audit commitment percentage values. Periods with zero planned audits 
-        are returned as `NaN` to avoid division by zero.
-        Returns `None` if audit data was not retrieved.
+    Parameters
+    ----------
+    interval (Optional[str]): Time interval to compute commitment ('Month', 'Quarter', 'Year').
+        Defaults to 'Month'.
+    filter_by_type (Optional[bool]): If True, only considers audits of user-selected types. 
+        Defaults to True.
+
+    Returns
+    -------
+    Optional[pd.Series]
+        Series indexed by period (`Planned Start <interval>`), containing the
+        commitment percentage. Periods with zero planned audits are `NaN`.
+        Returns None if `df_audits` is not available (e.g., is a string placeholder).
     """
-    if isinstance(dfs_audits, str):
-        return
-    dfs_audits_ = dfs_audits if not filter_by_type else filtered_dfs_audits
-    audits = dfs_audits_[interval][dfs_audits_[interval]['Planned'] != 0].groupby(interval)[['Completed', 'Planned']].sum()
-    commitment = audits['Completed'] / audits['Planned'].replace(0, np.nan) * 100
-    return commitment 
+    if isinstance(df_audits, str):
+        return None
+
+    df_audits_ = df_audits if not filter_by_type else filtered_df_audits
+    df_audits_ = df_audits_.copy()
+
+    planned_col = 'Planned Start ' + interval
+    start_col = 'Start ' + interval
+
+    df_audits_['match'] = df_audits_[planned_col] == df_audits_[start_col]
+    commitment = df_audits_.groupby(planned_col)['match'].mean() * 100
+
+    return commitment
 
 
-def plot_audit_cts():
-    """
-    Plots a bar chart showing the number of completed audits over time.
-
-    This function filters audit data based on the user-selected interval and audit types,
-    aggregates completed internal and/or external audits per period, and displays a 
-    stacked bar chart using the `plot_bar` utility.
-
-    If only one audit type is selected, the plot title and legend are simplified.
-    A message is shown if there are no audits completed in the selected period.
-
-    Returns:
-        None. The chart is rendered directly in the Streamlit app.
-    """
-    completed_audits = filtered_dfs_audits[interval][[interval, 'Type', 'Completed']]
-    completed_audits = completed_audits.pivot(index=interval, columns='Type', values='Completed').fillna(0)
-    plot = plot_bar(
-        PAGE_NAME,
-        completed_audits[audit_types[0]] if len(audit_types) == 1 else completed_audits['Internal'] + completed_audits['External'],
-        grouped_data=completed_audits,
-        no_data_msg='No' + ('' if len(audit_types) == 2 else ' ' + audit_types[0].lower()) + ' audits were completed' + (' during ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
-        bar_kwargs={'stacked': True, 'colormap': create_shifted_cmap('tab10', 4)},
-        max_period_msg=' as there may be more audits completed this ' + interval.lower(), 
-        clip_min=0,
-        title='Completed ' + ('' if len(audit_types) == 2 else audit_types[0] + ' ') + 'Audits',
-        y_label='# Audits',
-        y_integer=True
-    )
-    if plot is not None:
-        fig, ax = plot
-        if ax.get_legend_handles_labels():
-            # Remove the unwanted legend entry
-            handles, labels = ax.get_legend_handles_labels()
-            filtered = [(h, l) for h, l in zip(handles, labels) if len(audit_types) != 1 or l not in ['Internal', 'External']]
-            ax.legend(*zip(*filtered))  # Update legend with filtered entries
-            
-        return fig, ax
-
-
-df_audits = read_audits()
-by_qtr, by_yr = compute_audits_by_qtr_yr(df_audits)
-dfs_audits = {'Month': df_audits, 'Quarter': by_qtr, 'Year': by_yr}
+df_audits = read_audit_data()
 
 
 if __name__ == '__main__':
@@ -110,32 +66,43 @@ if __name__ == '__main__':
     show_data_srcs('Audits', df_audits if isinstance(df_audits, str) else None)
 
     if not isinstance(df_audits, str):
-        audit_types = st.multiselect('Select Audit Types', options=['Internal', 'External'], default=['Internal', 'External'], key='audit_types')
-        if not audit_types:
-            st.write('Select audit type(s) to plot data')
-        filtered_dfs_audits = {interval_: df_audits[df_audits['Type'].isin(audit_types)] for interval_, df_audits in dfs_audits.items()}
+        settings = get_settings()
+        page = settings.get_page(PAGE_NAME)
+        
         interval = render_interval_filter(PAGE_NAME)
-        min_period = df_audits[interval].min()
+        min_period = df_audits['Start ' + interval].min()
         min_period_str = period_str(min_period, interval)
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
+        filtered_df_audits = render_breakdown_fixed(PAGE_NAME, df_audits)
+        
+        audit_cts = compute_cts(PAGE_NAME, filtered_df_audits)
 
-        plots = []
-        plot = plot_audit_cts()
-        if plots is not None:
-            plots.append(plot[0])
+        period_string = period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)
+        to_display = []
+        plot = plot_bar(
+            PAGE_NAME,
+            audit_cts['Start Date'][0],
+            grouped_data=audit_cts['Start Date'][1],
+            bar_kwargs={'stacked': True, 'colormap': create_shifted_cmap('tab10', 4)},
+            max_period_msg=' as there may be more audits completed this ' + interval.lower(), 
+            clip_min=0,
+            title='Completed Audits',
+            y_label='# Audits',
+            y_integer=True,
+            missing_as_zero=True
+        )
+        to_display.append('No audits matching your filters were started ' + period_string + '.' if plot is None else plot[0])
         plot = plot_bar(
             PAGE_NAME,
             compute_audit_commitment(interval),
-            no_data_msg='No' + ('' if len(audit_types) == 2 else ' ' + audit_types[0].lower()) + ' audits were planned for ' + (period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
             bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'},
             tol_lower=100,
             min_period_msg=f' as there are no records of audits before this {interval.lower()}',
             max_period_msg=f' as there may be more audits completed this {interval.lower()}',
             is_pct=True,
-            title=('' if len(audit_types) == 2 else audit_types[0] + ' ') + 'Audit Commitment',
+            title='Audit Commitment',
             y_label='% planned audits completed',
             label_missing='No planned audits',
         )
-        if plot is not None:
-            plots.append(plot[0])
-        responsive_columns(plots)
+        to_display.append('No audits matching your filters were planned for ' + period_string + '.' if plot is None else plot[0])
+        responsive_columns(to_display)

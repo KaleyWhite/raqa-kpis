@@ -9,7 +9,8 @@ from pages.CAPAs import compute_capa_commitment
 from pages.Complaints import compute_complaint_commitment
 from pages.Training import compute_training_commitment
 
-from utils import RAD_COLOR, create_shifted_cmap, init_page, show_data_srcs
+from utils import create_shifted_cmap, init_page, show_data_srcs
+from utils.constants import RAD_COLOR
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
 from utils.text_fmt import items_in_a_series
@@ -41,10 +42,10 @@ def compute_commitment(interval='Month'):
 
     Returns:
         Union[Tuple[pd.Series, pd.Period, str], str]: Tuple containing:
-                                                      The overall commitment score for each time period
-                                                      The latest minimum period in any of the compueted commitments (audits, CAPAs, etc.)
-                                                      The category corresponding to that max min; 
-                                                      or an error message if the requsite source data could not be retrieved.
+            The overall commitment score for each time period
+            The latest minimum period in any of the compueted commitments (audits, CAPAs, etc.)
+            The category corresponding to that max min; 
+            or an error message if the requsite source data could not be retrieved.
     """
     commitments = {
         'Audits': compute_audit_commitment(interval, False),
@@ -86,7 +87,7 @@ if __name__ == '__main__':
             interval=interval,
             start=start,
             end=end, 
-            bar_kwargs={'color': RAD_COLOR},
+            bar_kwargs={'color': RAD_COLOR, 'label': '_nolegend_'},
             is_pct=True,
             title='Commitment',
             x_label='Complaint closure ' + interval.lower(),
