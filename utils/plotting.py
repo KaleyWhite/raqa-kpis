@@ -79,8 +79,8 @@ def plot_bar(
         data = data.fillna(0)
    
     filtered_data = data[start:end]
-    if filtered_data.eq(0).all():
-        return None
+    if filtered_data.eq(0).all() or filtered_data.isna().all():
+        return
 
     fig, ax = plt.subplots()
     msgs = kwargs.get('msgs', [])

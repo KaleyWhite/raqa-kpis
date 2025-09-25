@@ -3,6 +3,7 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import pandas as pd
 import streamlit as st
 
@@ -44,6 +45,7 @@ def ct_by_submission_date(
         return
 
     df_capas_ = filtered_df_capas.copy() if filter_by_selection else df_capas.copy()
+    df_capas_ = df_capas_[df_capas_['Status'] == 'Closed']
 
     period_col = interval + ' of Submission'
     by_submission_date = (
@@ -53,6 +55,42 @@ def ct_by_submission_date(
     )
 
     return by_submission_date
+
+
+def compute_avg_time_open(
+    interval: Optional[str] = 'Month',
+    filter_by_selection: bool = True
+) -> Optional[pd.Series]:
+    """
+    Computes the average number of days CAPAs were open per period.
+
+    Parameters
+    ----------
+    interval : Optional[str]
+        Time interval to compute the average days open ('Month', 'Quarter', 'Year').
+        Defaults to 'Month'.
+    filter_by_selection : bool
+        If True, only consider CAPAs of the user-selected filters. Defaults to True.
+
+    Returns
+    -------
+    Optional[pd.Series]
+        Series indexed by period, containing the average days CAPAs were open.
+        Returns None if `df_capas` is unavailable (e.g., is a placeholder string).
+    """
+    if isinstance(df_capas, str):
+        return None
+
+    # Select appropriate dataframe
+    df_capas_ = filtered_df_capas.copy() if filter_by_selection else df_capas.copy()
+    df_capas_ = df_capas_[df_capas_['Status'] == 'Closed']
+
+    period_col = interval + ' of Submission'
+
+    # Compute average Age per period
+    avg_age = df_capas_.groupby(period_col)['Age'].mean().reindex(ALL_PERIODS[interval])
+
+    return avg_age
 
 
 def compute_capa_commitment(
@@ -77,13 +115,14 @@ def compute_capa_commitment(
         Returns None if `df_capas` is not available (e.g., is a placeholder string).
     """
     if isinstance(df_capas, str):
-        return None
+        return
 
     submitted = ct_by_submission_date(interval, filter_by_selection)
     if submitted is None or submitted.empty:
-        return None
+        return
 
     df_capas_ = filtered_df_capas.copy() if filter_by_selection else df_capas.copy()
+    df_capas_ = df_capas_[df_capas_['Status'] == 'Closed']
     
     period_col = interval + ' of Submission'
     ct_on_time = (
@@ -130,6 +169,7 @@ def compute_capa_effectiveness(
 
     # Select appropriate dataframe
     df_capas_ = filtered_df_capas.copy() if filter_by_selection else df_capas.copy()
+    df_capas_ = df_capas_[df_capas_['Status'] == 'Closed']
 
     # Count CAPAs that passed effectiveness verification per period
     passed_col = 'Effectiveness Verification Status'
@@ -234,7 +274,7 @@ def plot_capa_age() -> Union[Tuple[plt.Figure, plt.Axes], str]:
     
     # Red shaded region for CAPAs >= 365 days
     x_max = ax.get_xlim()[1]
-    ax.axvspan(365, x_max, color='red', alpha=0.1, edgecolor='gray')
+    ax.axvspan(365, x_max, facecolor='red', alpha=0.1, edgecolor='gray')
     
     # Percent annotation at top-right
     pct_long = len(open_long) / len(open_capas) * 100
@@ -249,6 +289,8 @@ def plot_capa_age() -> Union[Tuple[plt.Figure, plt.Axes], str]:
     ax.set_title('CAPA Age')
     ax.set_xlabel('# Days Open')
     ax.set_ylabel('# Open CAPAs')
+    
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     
     return fig, ax
 
@@ -267,11 +309,12 @@ if __name__ == '__main__':
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
         
         filtered_df_capas = render_breakdown_fixed('CAPAs', df_capas)
-        
-        capa_cts = compute_cts('CAPAs', filtered_df_capas)
+    
         min_period_msg = ' as earlier CAPAs than this ' + interval.lower() + ' are not tracked in Matrix'
         period_string = 'during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)
         for col, short in DATE_COLS['CAPAs'].items():
+            df_to_ct = (filtered_df_capas[filtered_df_capas['Status'] == 'Closed'] if short in ['Submitted', 'Approved'] else filtered_df_capas).copy() 
+            capa_cts = compute_cts('CAPAs', df_to_ct)
             total_cts, cts_by_selection = capa_cts[col]
             plot = plot_bar(
                 PAGE_NAME,
@@ -287,7 +330,7 @@ if __name__ == '__main__':
                 y_integer=True,
                 missing_as_zero=True
             )
-            to_display.append(f'No CAPAs meeting the selected criteria were{short.lower()} {period_string}.' if plot is None else plot[0])
+            to_display.append(f'No CAPAs meeting the selected criteria were {short.lower()} {period_string}, so cannot plot CAPAs {short.lower()}.' if plot is None else plot[0])
         commitment_effectiveness_max_period_msg = ' as there may be more CAPAs submitted this ' + interval.lower()
         plot = plot_bar(
             PAGE_NAME,
@@ -317,6 +360,7 @@ if __name__ == '__main__':
         )
         if plot is not None:
             to_display.append(plot[0])
+        
         plot = plot_bar(
             PAGE_NAME,
             compute_submitted_timely(interval),
@@ -325,12 +369,28 @@ if __name__ == '__main__':
             max_period_msg=commitment_effectiveness_max_period_msg,
             title='CAPAs Submitted Within 90d',
             x_label='Submission ' + interval,
-            y_label='% submitted w/in 90d',
+            y_label='% Submitted W/in 90d',
             is_pct=True,
             label_missing='No CAPAs submitted',
         )
         if plot is not None:
             to_display.append(plot[0])
+        
+        plot = plot_bar(
+            PAGE_NAME,
+            compute_avg_time_open(interval),
+            min_period=min_period,
+            bar_kwargs={'label': '_nolegend_'},
+            min_period_msg=min_period_msg,
+            max_period_msg=commitment_effectiveness_max_period_msg,
+            title='Average Time to Submission',
+            x_label='Submission ' + interval,
+            y_label='# Days',
+            clip_min=0,
+            y_integer=True,
+            label_missing='No CAPAs submitted',
+        )
+        to_display.append(f'No CAPAs were submitted {period_string}, so cannot plot average number of days until closure.' if plot is None else plot[0])
             
         plot = plot_capa_age()
         to_display.append(plot if isinstance(plot, str) else plot[0])
