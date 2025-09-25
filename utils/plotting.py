@@ -1,5 +1,7 @@
 from typing import Any, Optional, List, Tuple
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
@@ -14,6 +16,57 @@ from utils.settings import get_settings
 from utils.text_fmt import items_in_a_series, period_str
 
 
+def display_no_data_msg(
+    msg: str,
+    fig: Optional[Figure] = None,
+    ax: Optional[Axes] = None,
+    title: Optional[str] = None
+) -> Tuple[Figure, Axes]:
+    """
+    Displays a message on a Matplotlib Axes when no data is available.
+
+    Clears all tick marks and labels, keeps a black box outline, and prints the message 
+    in the vertical center, left-aligned. Optionally, a title can be set for the Axes.
+
+    Parameters:
+        msg (str): The message to display inside the plot area.
+        fig (Optional[Figure]): Matplotlib Figure object. If None, a new figure is created.
+        ax (Optional[Axes]): Matplotlib Axes object. If None, a new axes is created.
+        title (Optional[str]): Optional title to set on the axes.
+
+    Returns:
+        Tuple[Figure, Axes]: The Matplotlib Figure and Axes objects containing the message.
+    """
+    if fig is None or ax is None:
+        fig, ax = plt.subplots()
+
+    # Remove ticks and labels
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+
+    # Keep black box outline
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color('black')
+        spine.set_linewidth(1)
+
+    # Add message text
+    ax.text(
+        0.1, 0.5, textwrap.fill(msg, width=50),
+        transform=ax.transAxes,
+        ha='left', va='center',
+        fontsize=11
+    )
+
+    # Set optional title
+    if title is not None:
+        ax.set_title(title)
+
+    return fig, ax
+    
+
 def plot_bar(
     page_name: str,
     data: pd.Series,
@@ -21,7 +74,7 @@ def plot_bar(
     trendline: bool = True,
     rolling_avg: bool = True,
     **kwargs: Any
-) -> Optional[Tuple[plt.Figure, plt.Axes]]:
+) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots a bar chart with optional trendline, rolling average, and tolerance shading.
 
@@ -32,6 +85,8 @@ def plot_bar(
     - Quality goal tolerance shading (green region for acceptable ranges)
     - Optional markers for missing values
     - Contextual annotations and axis formatting
+    
+    If there is no data to plot, returns an empty plot with the missing-data message.
 
     Parameters:
         page_name (str): Unique identifier for the page.
@@ -57,10 +112,12 @@ def plot_bar(
             - msgs (List[str]): Footnote-style messages annotated below the plot.
             - min_period_msg, max_period_msg (str): Notes if first/last periods are excluded from trendline.
             - label_missing (str): Legend entry for missing-value markers.
+            - no_data_msg (str): Text to display on an empty plot if there is no data to plot.
             - missing_as_zero (bool): Fill missing periods with zero if True.
+            - omit_legend_entries (List[str]): List of legend labels to hide.
 
     Returns:
-        Optional[Tuple[plt.Figure, plt.Axes]]: Figure and axes objects of the plot,
+        Tuple[plt.Figure, plt.Axes]: Figure and axes objects of the plot,
         or None if no data is available to plot.
     """
     settings = get_settings()
@@ -78,11 +135,14 @@ def plot_bar(
     if kwargs.get('missing_as_zero', False):
         data = data.fillna(0)
    
+    fig, ax = plt.subplots()
+    ax.set_title(kwargs.get('title'))
+   
     filtered_data = data[start:end]
     if filtered_data.eq(0).all() or filtered_data.isna().all():
-        return
+        display_no_data_msg(kwargs.get('no_data_msg', 'No data'), fig, ax)
+        return fig, ax
 
-    fig, ax = plt.subplots()
     msgs = kwargs.get('msgs', [])
     all_periods = pd.period_range(start=start, end=end, freq=interval[0])
     x_labels = [period_str(period, interval) for period in all_periods]
@@ -167,10 +227,13 @@ def plot_bar(
     ax.ticklabel_format(style='plain', axis='y')
     if kwargs.get('y_integer'):
         ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-    ax.set_title(kwargs.get('title'))
     
     if ax.get_legend_handles_labels():
         ax.legend(loc='upper right')
+        # Remove the unwanted legend entries
+        handles, labels = ax.get_legend_handles_labels()
+        filtered = [(h, l) for h, l in zip(handles, labels) if l not in kwargs.get('omit_legend_entries', [])]
+        ax.legend(*zip(*filtered))  # Update legend with filtered entries
     
     msg_y = -0.15
     for msg in msgs: 

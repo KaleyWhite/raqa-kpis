@@ -6,7 +6,7 @@ from read_data.read_dev_tickets import read_dev_ticket_data
 from utils import compute_cts, init_page, show_data_srcs
 from utils.constants import DATE_COLS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
-from utils.plotting import plot_bar, responsive_columns
+from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
 
@@ -44,9 +44,10 @@ if __name__ == '__main__':
                 clip_min=0,
                 title='# Tickets ' + short,
                 y_label='# Tickets',
-                y_integer=True
+                y_integer=True,
+                no_data_msg=f'No tickets meeting the selected criteria were {short.lower()} {period_string}.'
             )
-            to_display.append(f'No tickets meeting the selected criteria were {short.lower()} {period_string}.' if plot is None else plot[0])
+            to_display.append(plot[0])
         
         responsive_columns(to_display)
             

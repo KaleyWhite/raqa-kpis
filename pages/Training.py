@@ -14,7 +14,7 @@ from read_data.read_training import read_training_data
 from utils import init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, INTERVALS, PROD_COLORS, RAD_COLOR
 from utils.filters import render_interval_filter, render_period_filter
-from utils.plotting import plot_bar, responsive_columns
+from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
 
@@ -125,13 +125,15 @@ def compute_training_commitment(
     return commitment
     
     
-def plot_training_completion() -> Optional[Tuple[Figure, Axes]]:
+def plot_training_completion() -> Tuple[Figure, Axes]:
     """
     Plots a histogram of employees' training completion percentages for the current period.
 
     Checks whether any training records exist for the current period within the user-selected
     `interval` (value from INTERVALS). If records are present, generates a histogram showing
     the distribution of '% Training Complete' across employees.
+    
+    If there is no data to plot, displays such a message in the empty Axes.
 
     The plot includes:
     - x-axis: Percent of training completed (0–100%)
@@ -140,7 +142,7 @@ def plot_training_completion() -> Optional[Tuple[Figure, Axes]]:
 
     Returns
     -------
-    Optional[Tuple[Figure, Axes]]:
+    Tuple[Figure, Axes]:
         fig (Figure): Matplotlib Figure object.
         ax (Axes): Matplotlib Axes object.
         Returns None if no training records are available for the current period.
@@ -148,30 +150,26 @@ def plot_training_completion() -> Optional[Tuple[Figure, Axes]]:
     curr_period_training = dfs_training[interval][
         dfs_training[interval][interval] == ALL_PERIODS[interval][-1]
     ]
-    if len(curr_period_training) == 0:
-        st.write(
-            'No training was assigned for this ' +
-            interval.lower() +
-            ', so cannot plot training completion.'
-        )
-        return None
-
     fig, ax = plt.subplots()
-    ax.grid(axis='y', alpha=0.7, zorder=1)
+    title = 'Training Completion as of ' + datetime.now().strftime('%Y-%m-%d')
+    if len(curr_period_training) == 0:
+        display_no_data_msg(f'No training was assigned for this {interval.lower()}, so cannot plot training completion.', fig, ax, title)
+    else:
+        ax.grid(axis='y', alpha=0.7, zorder=1)
 
-    cts, _, _ = ax.hist(
-        curr_period_training['% Training Complete'],
-        color=RAD_COLOR,
-        edgecolor='black',
-        zorder=2
-    )
+        cts, _, _ = ax.hist(
+            curr_period_training['% Training Complete'],
+            color=RAD_COLOR,
+            edgecolor='black',
+            zorder=2
+        )
 
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, max(cts))
-    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-    ax.set_xlabel('% Complete')
-    ax.set_ylabel('# Employees')
-    ax.set_title('Training Completion as of ' + datetime.now().strftime('%Y-%m-%d'))
+        ax.set_xlim(0, 100)
+        ax.set_ylim(0, max(cts))
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+        ax.set_xlabel('% Complete')
+        ax.set_ylabel('# Employees')
+        ax.set_title(title)
 
     return fig, ax
      
@@ -207,12 +205,12 @@ if __name__ == '__main__':
             min_period_msg=f' as Rad did not implement the current QMS training process until partway through the {interval.lower()}', 
             is_pct=True,
             title='Training Commitment',
-            y_label='% Trainings completed on time'
+            y_label='% Trainings completed on time',
+            no_data_msg=f'No training matching the selected crietria was completed {period_string}, so cannot plot training commitment.'
         )
-        to_display.append(f'No training matching the selected crietria was completed {period_string}.' if plot is None else plot[0])
+        to_display.append(plot[0])
         plot = plot_training_completion()
-        if plot is not None:
-            to_display.append(plot[0])
+        to_display.append(plot[0])
         
         responsive_columns(to_display)
         

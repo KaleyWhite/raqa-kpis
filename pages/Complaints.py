@@ -10,7 +10,7 @@ from read_data.read_usage import read_usage_data
 from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
-from utils.plotting import plot_bar, responsive_columns
+from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
 
@@ -19,7 +19,7 @@ if __name__ == '__main__':
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 
 
-def compute_complaint_pct_ratio() -> Optional[Tuple[pd.Series, pd.Series, pd.Period, List[str]]]:
+def compute_complaint_pct_ratio() -> Tuple[Optional[pd.Series], Optional[pd.Series], Optional[pd.Period], Optional[List[str]]]:
     """
     Computes complaint percentage and complaint-to-user ratio for each period.
 
@@ -32,12 +32,12 @@ def compute_complaint_pct_ratio() -> Optional[Tuple[pd.Series, pd.Series, pd.Per
 
     Returns
     -------
-    Optional[Tuple[pd.Series, pd.Series, pd.Period, List[str]]]:
+    Tuple[Optional[pd.Series], Optional[pd.Series], Optional[pd.Period], Optional[List[str]]]:
         complaint_pct (pd.Series): Percentage of complaints per usage (complaints / runs * 100).
         complaint_ratio (pd.Series): Number of complaints per unique user (account).
         pct_ratio_start (pd.Period): The period from which complaint percentage/ratio is valid.
         msgs (List[str]): Informational messages about skipped periods due to lack of usage data.
-        Returns None if there is no usage data during the user-selected time interval.
+        Returns four-tuple of None's if there is no usage data during the user-selected time interval.
     """
     msgs: List[str] = []
 
@@ -67,7 +67,7 @@ def compute_complaint_pct_ratio() -> Optional[Tuple[pd.Series, pd.Series, pd.Per
     # Check for non-zero usage
     nonzero_idx = usage_by_period_filtered[usage_by_period_filtered > 0].index
     if len(nonzero_idx) == 0:
-        return None
+        return None, None, None, None
 
     complaint_pct = total_cts / usage_by_period * 100
 
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         else:
             data_src_msg = 'Could not retrieve complaint data from Salesforce.'
     elif isinstance(data_usage, str):
-         data_src_msg = 'Could not retrieve usage data from Salesforce.'
+        data_src_msg = 'Could not retrieve usage data from Salesforce.'
     show_data_srcs('Complaints', data_src_msg)
     
     if not isinstance(df_complaints, str):
@@ -160,42 +160,44 @@ if __name__ == '__main__':
                 clip_min=0,
                 title='# Complaint Investigations Completed' if col == 'Investigation Completed Date' else '# Complaints ' + DATE_COLS['Complaints'][col],
                 y_label='# complaints',
-                y_integer=True
+                y_integer=True,
+                no_data_msg=f'No complaints meeting the specified criteria were {short.lower()}{period_string}.'
             )
-            to_display.append(f'No complaints meeting the specified criteria were {short.lower()} {period_string}.'if plot is None else plot[0])
+            to_display.append(plot[0])
 
-        if not isinstance(data_usage, str):
-            complaint_pct_ratio = compute_complaint_pct_ratio()
-            if complaint_pct_ratio is None:
-                st.write('Cannot compute complaint percentage or complaint ratio as there is no usage data ' + ('during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.')
-            else:
-                complaint_pct, complaint_ratio, pct_ratio_start, msgs = complaint_pct_ratio
-                plot = plot_bar(
-                    PAGE_NAME,
-                    complaint_pct, 
-                    start=pct_ratio_start.asfreq(interval[0]),
-                    msgs=[msgs[0]],
-                    max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
-                    clip_min=0, 
-                    clip_max=100,
-                    title='Opened Complaints as % of Usage',
-                    y_label='% complaints'
-                )
-                if plot is not None:
-                    to_display.append(plot[0])
-                plot = plot_bar(
-                    PAGE_NAME,
-                    complaint_ratio, 
-                    start=pct_ratio_start.asfreq(interval[0]),
-                    msgs=[msgs[1]],
-                    max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
-                    clip_min=0, 
-                    clip_max=100,
-                    title='Avg # Complaints per Account',
-                    y_label='# complaints'
-                )
-                if plot is not None:
-                    to_display.append(plot[0])
+        complaint_pct_title, complaint_ratio_title = 'Opened Complaints as % of Usage', 'Avg # Complaints per Account'
+        if isinstance(data_usage, str):
+            to_display.extend([
+                display_no_data_msg(f'Cannot compute complaint percentage as there is no usage data {period_str}.', title=complaint_pct_title)[0],
+                display_no_data_msg(f'Cannot compute complaint ratio as there is no usage data {period_str}.', title=complaint_ratio_title)[0]
+            ])
+        else:
+            complaint_pct, complaint_ratio, pct_ratio_start, msgs = compute_complaint_pct_ratio()
+            st.write(msgs)
+            plot = plot_bar(
+                PAGE_NAME,
+                complaint_pct, 
+                start=pct_ratio_start.asfreq(interval[0]),
+                msgs=msgs[:1],
+                max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
+                clip_min=0, 
+                clip_max=100,
+                title=complaint_pct_title,
+                y_label='% complaints'
+            )
+            to_display.append(plot[0])
+            plot = plot_bar(
+                PAGE_NAME,
+                complaint_ratio, 
+                start=pct_ratio_start.asfreq(interval[0]),
+                msgs=msgs[1:],
+                max_period_msg=' as there may be more complaints and usage this ' + interval.lower(), 
+                clip_min=0, 
+                clip_max=100,
+                title=complaint_ratio_title,
+                y_label='# complaints'
+            )
+            to_display.append(plot[0])
 
         plot = plot_bar(
             PAGE_NAME,
@@ -205,9 +207,9 @@ if __name__ == '__main__':
             title='Complaint Commitment',
             x_label='Closure ' + interval,
             y_label='% complaints open ≤60d',
-            label_missing='No complaints received'
+            label_missing='No complaints received',
+            no_data_msg=f'No complaints were closed{period_string}, so cannot plot complaint commitment.'
         )
-        if plot is not None:
-            to_display.append(plot[0])
+        to_display.append(plot[0])
         
         responsive_columns(to_display)

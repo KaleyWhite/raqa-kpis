@@ -11,7 +11,7 @@ from read_data.read_capas import read_capa_data
 from utils import compute_bin_width, compute_cts, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
-from utils.plotting import plot_bar, responsive_columns
+from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
 
@@ -244,17 +244,18 @@ def plot_capa_age() -> Union[Tuple[plt.Figure, plt.Axes], str]:
       - A vertical dotted gray line at 365 days labeled "1y"
       - A red transparent shaded region from 365 days to the end of the plot
       - A red label at the top-right showing the percentage of CAPAs older than 1 year
+      
+    If there are no open CAPAs, returns empty axes with a "no data" message
 
     Returns:
-        Union[Tuple[plt.Figure, plt.Axes], str]:
-            - (fig, ax): Matplotlib Figure and Axes objects if there are open CAPAs.
-            - str: Message indicating no open CAPAs exist.
+        Tuple[plt.Figure, plt.Axes]:
+            Matplotlib Figure and Axes objects
     """
     fig, ax = plt.subplots()
     
     open_capas = filtered_df_capas[filtered_df_capas['Status'] == 'Open']
     if len(open_capas) == 0:
-        return 'No open CAPAs, so cannot plot CAPA age.'
+        display_no_data_msg('No open CAPAs, so cannot plot CAPA age.', fig, ax)
     
     open_short = open_capas[open_capas['Age'] < 365]
     open_long = open_capas[open_capas['Age'] >= 365]
@@ -328,9 +329,10 @@ if __name__ == '__main__':
                 title='# CAPAs ' + short,
                 y_label='# CAPAs',
                 y_integer=True,
-                missing_as_zero=True
+                missing_as_zero=True,
+                no_data_msg=f'No CAPAs meeting the selected criteria were {short.lower()} {period_string}, so cannot plot CAPAs {short.lower()}.'
             )
-            to_display.append(f'No CAPAs meeting the selected criteria were {short.lower()} {period_string}, so cannot plot CAPAs {short.lower()}.' if plot is None else plot[0])
+            to_display.append(plot[0])
         commitment_effectiveness_max_period_msg = ' as there may be more CAPAs submitted this ' + interval.lower()
         plot = plot_bar(
             PAGE_NAME,
@@ -343,9 +345,9 @@ if __name__ == '__main__':
             y_label='Commitment %',
             is_pct=True,
             label_missing='No CAPAs submitted',
+            no_data_msg=f'No CAPAs meeting the selected criteria were submitted {period_string}, so cannot plot CAPA commitment.'
         )
-        if plot is not None:
-            to_display.append(plot[0])
+        to_display.append(plot[0])
         plot = plot_bar(
             PAGE_NAME,
             compute_capa_effectiveness(interval),
@@ -358,8 +360,7 @@ if __name__ == '__main__':
             is_pct=True,
             label_missing='No CAPAs submitted',
         )
-        if plot is not None:
-            to_display.append(plot[0])
+        to_display.append(plot[0])
         
         plot = plot_bar(
             PAGE_NAME,
@@ -372,9 +373,9 @@ if __name__ == '__main__':
             y_label='% Submitted W/in 90d',
             is_pct=True,
             label_missing='No CAPAs submitted',
+            no_data_msg=f'No CAPAs meeting the selected criteria were submitted {period_string}, so cannot plot CAPAs submitted in a timely manner.'
         )
-        if plot is not None:
-            to_display.append(plot[0])
+        to_display.append(plot[0])
         
         plot = plot_bar(
             PAGE_NAME,
@@ -389,10 +390,11 @@ if __name__ == '__main__':
             clip_min=0,
             y_integer=True,
             label_missing='No CAPAs submitted',
+            no_data_msg=f'No CAPAs were submitted {period_string}, so cannot plot average number of days until closure.'
         )
-        to_display.append(f'No CAPAs were submitted {period_string}, so cannot plot average number of days until closure.' if plot is None else plot[0])
+        to_display.append(plot[0])
             
         plot = plot_capa_age()
-        to_display.append(plot if isinstance(plot, str) else plot[0])
+        to_display.append(plot[0])
         
         responsive_columns(to_display)

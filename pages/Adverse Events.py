@@ -38,8 +38,8 @@ def plot_ae_cts(ae_cts: dict, rad: bool = False) -> Optional[Tuple[matplotlib.fi
 
     Returns
     -------
-    Optional[Tuple[matplotlib.figure.Figure, Any]]
-        The figure and axes returned by `plot_bar`, or None if no data is available to plot.
+    Tuple[matplotlib.figure.Figure, Any]:
+        The figure and axes returned by `plot_bar`.
     """
     kwargs = {
         'grouped_data': ae_cts['Date Received'][1],
@@ -47,16 +47,22 @@ def plot_ae_cts(ae_cts: dict, rad: bool = False) -> Optional[Tuple[matplotlib.fi
         'max_period_msg': f' as there may be more AEs this {interval.lower()}',
         'x_label': 'Date Received',
         'y_label': '# AEs',
-        'y_integer': True
+        'y_integer': True,
+        'no_data_msg': ''
     }
 
+    period_string = 'during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)
     if rad:
-        kwargs['title'] = 'Rad Adverse Events'
-        kwargs['min_period_msg'] = (
-            f' as Rad was not incorporated until partway through the {interval.lower()}'
-        )
+        kwargs.update({
+            'title': 'Rad Adverse Events',
+            'min_period_msg': f' as Rad was not incorporated until partway through the {interval.lower()}',
+            'no_data_msg': 'No Radformation AEs matching your filters were received by the FDA ' + period_string + '. Yay!'
+        })
     else:
-        kwargs['title'] = 'Competitor Adverse Events'
+        kwargs.update({
+            'title': 'Competitor Adverse Events',
+            'no_data_msg': 'No AEs about competitor products, matching your filters, were received by the FDA ' + period_string + '.'
+        })
 
     plot = plot_bar(
         PAGE_NAME,
@@ -83,13 +89,8 @@ if __name__ == '__main__':
         rad_ae_cts = compute_cts(PAGE_NAME, filtered_df_aes[filtered_df_aes['Manufacturer'] == 'RADFORMATION'])
         non_rad_ae_cts = compute_cts(PAGE_NAME, filtered_df_aes[filtered_df_aes['Manufacturer'] != 'RADFORMATION'])
         
-        period_string = 'during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)
-        to_display = []
-        
-        plot = plot_ae_cts(rad_ae_cts, rad=True)
-        to_display.append('No Radformation AEs matching your filters were received by the FDA ' + period_string + '. Yay!' if plot is None else plot[0])
-        
-        plot = plot_ae_cts(non_rad_ae_cts)
-        to_display.append('No AEs about competitor products, matching your filters, were received by the FDA ' + period_string + '.' if plot is None else plot[0])
-        
+        to_display = [
+            plot_ae_cts(rad_ae_cts, rad=True)[0],
+            plot_ae_cts(non_rad_ae_cts)[0]
+        ]
         responsive_columns(to_display)

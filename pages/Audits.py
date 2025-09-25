@@ -7,7 +7,7 @@ import streamlit as st
 from read_data.read_audits import read_audit_data
 from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import PROD_COLORS
-from utils.plotting import plot_bar, responsive_columns
+from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
 from utils.settings import get_settings
 from utils.text_fmt import period_str
@@ -89,9 +89,10 @@ if __name__ == '__main__':
             title='Completed Audits',
             y_label='# Audits',
             y_integer=True,
-            missing_as_zero=True
+            missing_as_zero=True,
+            no_data_msg='No audits matching your filters were started ' + period_string + '.'
         )
-        to_display.append('No audits matching your filters were started ' + period_string + '.' if plot is None else plot[0])
+        to_display.append(plot[0])
         plot = plot_bar(
             PAGE_NAME,
             compute_audit_commitment(interval),
@@ -103,6 +104,7 @@ if __name__ == '__main__':
             title='Audit Commitment',
             y_label='% planned audits completed',
             label_missing='No planned audits',
+            no_data_msg='No audits matching your filters were planned for ' + period_string + ', so cannot plot audit commitment.'
         )
-        to_display.append('No audits matching your filters were planned for ' + period_string + '.' if plot is None else plot[0])
+        to_display.append(plot[0])
         responsive_columns(to_display)

@@ -7,7 +7,7 @@ from read_data.read_usage import read_usage_data
 from utils import init_page, show_data_srcs
 from utils.constants import ALL_PERIODS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
-from utils.plotting import plot_bar, responsive_columns
+from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.settings import get_settings
 from utils.text_fmt import period_str
 
@@ -44,17 +44,10 @@ if __name__ == '__main__':
             min_period_msg=f' as Rad did not start tracking usage data until partway through the {interval.lower()}', 
             max_period_msg=f' as we don\'t yet have all data for this {interval.lower()}',
             clip_min=0,
-            title='Usage Volume'
+            title='Usage Volume',
+            no_data_msg='No usage matching your criteria occurred' + (' during ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
+            omit_legend=['Number Of Runs']
         )
-        if plot is None:
-            to_display.append('No usage matching your criteria occurred' + (' during ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',)
-        else:
-            fig, ax = plot
-            if ax.get_legend_handles_labels():
-                # Remove the unwanted legend entry
-                handles, labels = ax.get_legend_handles_labels()
-                filtered = [(h, l) for h, l in zip(handles, labels) if l != 'Number Of Runs']
-                ax.legend(*zip(*filtered))  # Update legend with filtered entries
-            to_display.append(fig)
+        to_display.append(plot[0])
             
         responsive_columns(to_display)
