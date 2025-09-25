@@ -46,6 +46,6 @@ def read_training_data() -> Union[pd.DataFrame, str]:
         df_training[interval_] = df_training['Month'].astype(f'period[{interval_[0]}]')
 
     # Sort for consistency
-    df_training.sort_values(['Month', 'User'], inplace=True)
+    df_training = df_training.sort_values(['Month', 'User'])
 
     return df_training

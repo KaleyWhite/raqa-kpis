@@ -28,10 +28,10 @@ def read_complaint_data() -> Union[pd.DataFrame, str]:
     df_complaints = correct_date_dtype(get_sf_records('Complaint__c'))
 
     # Normalize field names
-    df_complaints.rename(columns={'Device Name': 'Device'}, inplace=True)
+    df_complaints = df_complaints.rename(columns={'Device Name': 'Device'})
 
     # Default missing values
-    df_complaints['Is Safety Issue'].fillna('No', inplace=True)
+    df_complaints['Is Safety Issue'] = df_complaints['Is Safety Issue'].fillna('No')
 
     # Derived time durations
     df_complaints['# Days to Open'] = (

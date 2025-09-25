@@ -55,7 +55,7 @@ def read_usage_data() -> Union[pd.DataFrame, str]:
 
     # Extract device name from "Web Institution Product"
     df_usage['Device'] = df_usage['Web Institution Product'].apply(lambda x: x[x.rfind(' - ') + 3:])
-    df_usage.drop('Web Institution Product', axis=1, inplace=True)
+    df_usage = df_usage.drop('Web Institution Product', axis=1)
 
     # Add period columns for each defined interval
     for interval_ in INTERVALS:
