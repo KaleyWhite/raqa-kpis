@@ -27,16 +27,15 @@ def read_capa_data() -> Union[pd.DataFrame, str]:
         return 'Closed' if any('Closed' in lbl for lbl in row['Labels']) else 'Open'
     
     def compute_age(row):
-        if row['Status'] != 'Open':
-            return np.nan
-        return (pd.Timestamp.today().normalize() - row['Date Created']).days
+        end_date = pd.Timestamp.today().normalize() if row['Status'] == 'Open' else row['Date of Submission']
+        return (end_date - row['Date Created']).days
     
     matrix_items = get_matrix_items('CAPA')
     if isinstance(matrix_items, str):
         return matrix_items
     
     df_capas = correct_date_dtype(matrix_items, date_format='%Y/%m/%d')
-    
+    st.write(df_capas)
     df_capas['Status'] = df_capas.apply(compute_status, axis=1)
     df_capas['Age'] = df_capas.apply(compute_age, axis=1)
 

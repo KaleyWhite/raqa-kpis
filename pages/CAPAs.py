@@ -41,7 +41,7 @@ def ct_by_submission_date(
         Returns None if `df_capas` is not available (e.g., is a placeholder string).
     """
     if isinstance(df_capas, str):
-        return None
+        return
 
     df_capas_ = filtered_df_capas.copy() if filter_by_selection else df_capas.copy()
 
@@ -123,7 +123,7 @@ def compute_capa_effectiveness(
         Returns None if `df_capas` is not available (e.g., is a string placeholder).
     """
     if isinstance(df_capas, str):
-        return None
+        return
 
     # Get the count of CAPAs submitted per period
     submitted = ct_by_submission_date(interval, filter_by_selection)
@@ -145,6 +145,51 @@ def compute_capa_effectiveness(
     effectiveness = ct_passed / submitted * 100
 
     return effectiveness
+
+
+def compute_submitted_timely(
+    interval: Optional[str] = 'Month', 
+    filter_by_selection: bool = True
+) -> Optional[pd.Series]:
+    """
+    Computes the percentage of CAPAs submitted within 90 days of being opened.
+
+    Parameters
+    ----------
+    interval (Optional[str]): Time interval to compute percentage submitted timely ('Month', 'Quarter', 'Year').
+        Defaults to 'Month'.
+    filter_by_selection (bool): If True, only consider CAPAs of the user-selected filters. 
+        Defaults to True.
+
+    Returns
+    -------
+    Optional[pd.Series]
+        Series indexed by period, containing percentage CAPAs submitted timely.
+        Returns None if `df_capas` is not available (e.g., is a string placeholder).
+    """
+    if isinstance(df_capas, str):
+        return
+
+    # Get the count of CAPAs submitted per period
+    submitted = ct_by_submission_date(interval, filter_by_selection)
+
+    # Select appropriate dataframe
+    df_capas_ = filtered_df_capas.copy() if filter_by_selection else df_capas.copy()
+    df_capas_ = df_capas_[df_capas_['Status'] == 'Closed']
+
+    # Count CAPAs submitted within 90 days of creation date
+    period_col = interval + ' of Submission'
+    ct_timely = (
+        df_capas_[df_capas_['Age'] <= 90]
+        .groupby(period_col)
+        .size()
+        .reindex(ALL_PERIODS[interval], fill_value=0)
+    )
+
+    # Compute timely percentage
+    pct_timely = ct_timely / submitted * 100
+
+    return pct_timely
 
 
 def plot_capa_age() -> Union[Tuple[plt.Figure, plt.Axes], str]:
@@ -267,6 +312,20 @@ if __name__ == '__main__':
             title='CAPA Effectiveness',
             x_label='Submission ' + interval,
             y_label='% passed effectiveness check',
+            is_pct=True,
+            label_missing='No CAPAs submitted',
+        )
+        if plot is not None:
+            to_display.append(plot[0])
+        plot = plot_bar(
+            PAGE_NAME,
+            compute_submitted_timely(interval),
+            min_period=min_period,
+            min_period_msg=min_period_msg,
+            max_period_msg=commitment_effectiveness_max_period_msg,
+            title='CAPAs Submitted Within 90d',
+            x_label='Submission ' + interval,
+            y_label='% submitted w/in 90d',
             is_pct=True,
             label_missing='No CAPAs submitted',
         )
