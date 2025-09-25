@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from read_data.read_audits import read_audit_data
-from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs, suppress_warnings
+from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import PROD_COLORS
 from utils.plotting import plot_bar, responsive_columns
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
@@ -16,7 +16,6 @@ from utils.text_fmt import period_str
 if __name__ == '__main__':
     init_page('Audits')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
-suppress_warnings()
 
 
 def compute_audit_commitment(

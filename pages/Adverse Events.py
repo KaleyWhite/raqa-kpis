@@ -5,7 +5,7 @@ import matplotlib.figure
 import streamlit as st
 
 from read_data.read_aes import read_ae_data
-from utils import compute_cts, init_page, show_data_srcs, suppress_warnings
+from utils import compute_cts, init_page, show_data_srcs
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
 from utils.settings import get_settings
@@ -15,7 +15,6 @@ from utils.text_fmt import period_str
 if __name__ == '__main__':
     init_page('Adverse Events')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
-suppress_warnings()
 
 
 def plot_ae_cts(ae_cts: dict, rad: bool = False) -> Optional[Tuple[matplotlib.figure.Figure, Any]]:

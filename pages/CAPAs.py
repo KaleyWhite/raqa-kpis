@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from read_data.read_capas import read_capa_data
-from utils import compute_cts, init_page, show_data_srcs, suppress_warnings
+from utils import compute_cts, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
@@ -15,7 +15,6 @@ from utils.text_fmt import period_str
 if __name__ == '__main__':
     init_page('CAPAs')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
-suppress_warnings()
 
 
 def ct_by_submission_date(

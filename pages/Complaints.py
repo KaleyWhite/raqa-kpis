@@ -7,7 +7,7 @@ import streamlit as st
 
 from read_data.read_complaints import read_complaint_data
 from read_data.read_usage import read_usage_data
-from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs, suppress_warnings
+from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
@@ -17,7 +17,6 @@ from utils.text_fmt import period_str
 if __name__ == '__main__':
     init_page('Complaints')
 PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
-suppress_warnings()
 
 
 def compute_complaint_pct_ratio() -> Optional[Tuple[pd.Series, pd.Series, pd.Period, List[str]]]:

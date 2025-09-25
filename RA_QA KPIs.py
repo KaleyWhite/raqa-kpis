@@ -9,10 +9,11 @@ from pages.CAPAs import compute_capa_commitment
 from pages.Complaints import compute_complaint_commitment
 from pages.Training import compute_training_commitment
 
-from utils import create_shifted_cmap, init_page, show_data_srcs, suppress_warnings
+from utils import create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import RAD_COLOR
 from utils.filters import render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
+from utils.settings import get_settings
 from utils.text_fmt import items_in_a_series
 
 
@@ -25,8 +26,7 @@ COMMITMENT_WTS = OrderedDict([
     ('Complaints', 0.35),
     ('Training', 0.2),
 ])
-suppress_warnings()
-    
+  
 
 def compute_commitment(interval='Month'):
     """
@@ -44,7 +44,7 @@ def compute_commitment(interval='Month'):
     Returns:
         Union[Tuple[pd.Series, pd.Period, str], str]: Tuple containing:
             The overall commitment score for each time period
-            The latest minimum period in any of the compueted commitments (audits, CAPAs, etc.)
+            The latest minimum period in any of the computed commitments (audits, CAPAs, etc.)
             The category corresponding to that max min; 
             or an error message if the requsite source data could not be retrieved.
     """
@@ -70,6 +70,7 @@ def compute_commitment(interval='Month'):
 
 if __name__ == '__main__':
     st.title('RA/QA KPIs')
+    st.markdown('**Note**: This page uses dummy training data! REAL QMS training stats will be provided once we roll out QMS training in Matrix!')
     interval = render_interval_filter(PAGE_NAME)
     commitment = compute_commitment(interval)
     show_data_srcs(error_msg=commitment if isinstance(commitment, str) else None)
