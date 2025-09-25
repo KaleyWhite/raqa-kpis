@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -7,7 +7,23 @@ from utils.constants import ALL_PERIODS, BREAKDOWN_COLS, INTERVALS
 from utils.settings import get_settings
 
 
-def get_options_sorting_key(cat):
+def get_options_sorting_key(cat: str) -> Callable[[str], object]:
+    """
+    Returns a sorting key function for a given category.
+
+    The key function ensures that:
+      - Predefined ordering is applied for known categories (e.g., 'Priority', 'Size').
+      - 'Unknown' and 'N/A' are always placed at the end, with 'Unknown' before 'N/A'.
+      - Any unexpected values are placed after 'N/A'.
+      - For categories without predefined ordering, lexicographic sorting is used,
+        but 'Unknown' and 'N/A' are still pushed to the end.
+
+    Parameters:
+        cat (str): Name of the category for which to generate a sorting key.
+
+    Returns:
+        Callable[[str], object]: A function that takes a string value and returns a sort key.
+    """
     sorting_orders = {
         'Priority': ['Lowest', 'Low', 'Medium', 'High', 'Highest'],
         'Size': ['Small', 'Medium', 'Large']
@@ -16,7 +32,7 @@ def get_options_sorting_key(cat):
     if cat in sorting_orders:
         order = sorting_orders[cat]
 
-        def key(x):
+        def key(x: str) -> int:
             if x == 'Unknown':
                 return len(order)       # put after normal values
             elif x == 'N/A':
@@ -28,7 +44,7 @@ def get_options_sorting_key(cat):
         return key
 
     # Default: lexicographic sort but push Unknown/N/A to the end
-    def default_key(x):
+    def default_key(x: str):
         if x == 'Unknown':
             return (1, 0)
         elif x == 'N/A':
@@ -36,7 +52,6 @@ def get_options_sorting_key(cat):
         return (0, x)
     
     return default_key
-
 
 
 def render_interval_filter(page_name: str, default: str = 'Month') -> str:
