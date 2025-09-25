@@ -1,11 +1,13 @@
 import os
-from typing import Optional
+from typing import Optional, Tuple, Union
 
+import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
 from read_data.read_capas import read_capa_data
-from utils import compute_cts, init_page, show_data_srcs
+from utils import compute_bin_width, compute_cts, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
 from utils.plotting import plot_bar, responsive_columns
@@ -145,8 +147,69 @@ def compute_capa_effectiveness(
     return effectiveness
 
 
-df_capas = read_capa_data()
+def plot_capa_age() -> Union[Tuple[plt.Figure, plt.Axes], str]:
+    """
+    Plots a histogram of open CAPAs by age, highlighting CAPAs older than 1 year.
+
+    The function separates open CAPAs into:
+      - CAPAs < 365 days (green bars)
+      - CAPAs >= 365 days (red bars)
     
+    It includes:
+      - A vertical dotted gray line at 365 days labeled "1y"
+      - A red transparent shaded region from 365 days to the end of the plot
+      - A red label at the top-right showing the percentage of CAPAs older than 1 year
+
+    Returns:
+        Union[Tuple[plt.Figure, plt.Axes], str]:
+            - (fig, ax): Matplotlib Figure and Axes objects if there are open CAPAs.
+            - str: Message indicating no open CAPAs exist.
+    """
+    fig, ax = plt.subplots()
+    
+    open_capas = filtered_df_capas[filtered_df_capas['Status'] == 'Open']
+    if len(open_capas) == 0:
+        return 'No open CAPAs, so cannot plot CAPA age.'
+    
+    open_short = open_capas[open_capas['Age'] < 365]
+    open_long = open_capas[open_capas['Age'] >= 365]
+    
+    # Compute bin width
+    bin_width = compute_bin_width([open_capas['Age']]) / 5
+    overall_min, overall_max = open_capas['Age'].min(), open_capas['Age'].max()
+    bins = np.arange(overall_min, overall_max + bin_width, bin_width)
+    
+    # Plot histograms
+    open_short['Age'].plot(kind='hist', ax=ax, color='green', bins=bins, edgecolor='black')
+    open_long['Age'].plot(kind='hist', ax=ax, color='red', bins=bins, edgecolor='black')
+    
+    # Vertical line at 365 days
+    ax.axvline(365, color='gray', linestyle='dotted', linewidth=1)
+    ax.text(365 + 5, ax.get_ylim()[1] * 0.05, '1y', color='black', ha='center', va='top', fontsize=12, fontweight='bold')
+    
+    # Red shaded region for CAPAs >= 365 days
+    x_max = ax.get_xlim()[1]
+    ax.axvspan(365, x_max, color='red', alpha=0.1, edgecolor='gray')
+    
+    # Percent annotation at top-right
+    pct_long = len(open_long) / len(open_capas) * 100
+    ax.text(
+        x_max * 0.95, ax.get_ylim()[1] * 0.95,         
+        f"{pct_long:.1f}% open >1y",
+        color='red',
+        ha='right', va='top', fontsize=12, fontweight='bold'
+    )
+    
+    # Titles and labels
+    ax.set_title('CAPA Age')
+    ax.set_xlabel('# Days Open')
+    ax.set_ylabel('# Open CAPAs')
+    
+    return fig, ax
+
+
+df_capas = read_capa_data()
+
      
 if __name__ == '__main__':  
     st.title('CAPAs')
@@ -209,4 +272,8 @@ if __name__ == '__main__':
         )
         if plot is not None:
             to_display.append(plot[0])
+            
+        plot = plot_capa_age()
+        to_display.append(plot if isinstance(plot, str) else plot[0])
+        
         responsive_columns(to_display)

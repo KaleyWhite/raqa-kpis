@@ -56,7 +56,7 @@ def get_matrix_items(category: str) -> Union[pd.DataFrame, str]:
                 f'{QMS_URL}/item/{item_ref}',
                 headers=MATRIX_HEADERS,
             ).json()
-            item_dict = {'ID': item_ref, 'Title': item['title']}
+            item_dict = {'ID': item_ref, 'Title': item['title'], 'Labels': item['labels']}
             for fld_val in item['fieldValList']['fieldVal']:
                 item_dict[ids_names[fld_val['id']]] = BeautifulSoup(fld_val['value'], 'html.parser').text if fld_val['id'] in richtext else fld_val['value']
             item_dicts.append(item_dict)

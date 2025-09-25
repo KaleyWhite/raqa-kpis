@@ -1,5 +1,6 @@
 from typing import Union
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -22,11 +23,22 @@ def read_capa_data() -> Union[pd.DataFrame, str]:
             - A DataFrame containing processed CAPA data.
             - A string with an error message if the data could not be read.
     """
+    def compute_status(row):
+        return 'Closed' if any('Closed' in lbl for lbl in row['Labels']) else 'Open'
+    
+    def compute_age(row):
+        if row['Status'] != 'Open':
+            return np.nan
+        return (pd.Timestamp.today().normalize() - row['Date Created']).days
+    
     matrix_items = get_matrix_items('CAPA')
     if isinstance(matrix_items, str):
         return matrix_items
-
+    
     df_capas = correct_date_dtype(matrix_items, date_format='%Y/%m/%d')
+    
+    df_capas['Status'] = df_capas.apply(compute_status, axis=1)
+    df_capas['Age'] = df_capas.apply(compute_age, axis=1)
 
     dd_ids = {
         'dd_dispositions': 'Disposition',
