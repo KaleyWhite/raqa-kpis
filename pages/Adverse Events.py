@@ -6,7 +6,7 @@ import streamlit as st
 
 from read_data.read_aes import read_ae_data
 from utils import compute_cts, init_page, show_data_srcs
-from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import plot_bar, responsive_columns
 from utils.settings import get_settings
 from utils.text_fmt import period_str
@@ -81,6 +81,7 @@ if __name__ == '__main__':
         settings = get_settings()
         page = settings.get_page(PAGE_NAME)
         
+        render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         start, end = render_period_filter(PAGE_NAME, interval)
         filtered_df_aes = render_breakdown_fixed(PAGE_NAME, df_aes)

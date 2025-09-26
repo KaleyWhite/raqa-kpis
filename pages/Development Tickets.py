@@ -5,8 +5,8 @@ import streamlit as st
 from read_data.read_dev_tickets import read_dev_ticket_data
 from utils import compute_cts, init_page, show_data_srcs
 from utils.constants import DATE_COLS
-from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
-from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
+from utils.plotting import plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
 
@@ -20,6 +20,7 @@ if __name__ == '__main__':
     df_issues = read_dev_ticket_data()
     show_data_srcs('Development Tickets', df_issues if isinstance(df_issues, str) else None)
     if not isinstance(df_issues, str):
+        render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_issues[list(DATE_COLS['Development Tickets'])].min().min().to_period(interval[0])
         start, end = render_period_filter(PAGE_NAME, interval, min_period)

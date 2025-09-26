@@ -11,9 +11,8 @@ from pages.Training import compute_training_commitment
 
 from utils import create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import RAD_COLOR
-from utils.filters import render_interval_filter, render_period_filter
+from utils.filters import render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import plot_bar, responsive_columns
-from utils.settings import get_settings
 from utils.text_fmt import items_in_a_series
 
 
@@ -71,6 +70,7 @@ def compute_commitment(interval='Month'):
 if __name__ == '__main__':
     st.title('RA/QA KPIs')
     st.markdown('**Note**: This page uses dummy training data! REAL QMS training stats will be provided once we roll out QMS training in Matrix!')
+    render_toggle()
     interval = render_interval_filter(PAGE_NAME)
     commitment = compute_commitment(interval)
     show_data_srcs(error_msg=commitment if isinstance(commitment, str) else None)
@@ -101,47 +101,48 @@ if __name__ == '__main__':
         )
         
         # Pie chart of weights
-        inset_ax = fig.add_axes([0.1, 0.575, 0.25, 0.25], zorder=3)
-        inset_ax.set_title('Weights', fontsize=9, pad=0)
-        inset_ax.patch.set_alpha(0.0)
-        cmap = create_shifted_cmap('tab10', 4)
-        inset_ax.set_xticks([])
-        inset_ax.set_yticks([])
-        vals = list(COMMITMENT_WTS.values())
-        labels = list(COMMITMENT_WTS)
-        wedges, texts = inset_ax.pie(
-            vals,
-            labels=None,
-            colors=[cmap(x) for x in range(len(COMMITMENT_WTS))],
-            autopct=None,
-            wedgeprops={'edgecolor': 'white', 'alpha': 0.6},
-        )
-        for t in texts:
-            t.set_visible(False)
-        for i, wedge in enumerate(wedges):
-            ang = (wedge.theta2 + wedge.theta1) / 2.0  # angle in degrees
-            x = 0.6 * np.cos(np.deg2rad(ang))  # radius scaling -> closer to center
-            y = 0.6 * np.sin(np.deg2rad(ang))
-            inset_ax.text(
-                x, y,
-                f'{labels[i]}\n{vals[i]:.0%}',
-                ha='center', 
-                va='center',
-                fontsize=7
+        if 'data' not in st.session_state or st.session_state['data']:
+            inset_ax = fig.add_axes([0.1, 0.575, 0.25, 0.25], zorder=3)
+            inset_ax.set_title('Weights', fontsize=9, pad=0)
+            inset_ax.patch.set_alpha(0.0)
+            cmap = create_shifted_cmap('tab10', 4)
+            inset_ax.set_xticks([])
+            inset_ax.set_yticks([])
+            vals = list(COMMITMENT_WTS.values())
+            labels = list(COMMITMENT_WTS)
+            wedges, texts = inset_ax.pie(
+                vals,
+                labels=None,
+                colors=[cmap(x) for x in range(len(COMMITMENT_WTS))],
+                autopct=None,
+                wedgeprops={'edgecolor': 'white', 'alpha': 0.6},
             )
-        fig.canvas.draw()
-        pad = 0.015
-        bbox = inset_ax.get_position()
-        rect = FancyBboxPatch(
-            (bbox.x0 + pad, bbox.y0 + pad),
-            bbox.width - pad * 2, 
-            bbox.height + pad,
-            boxstyle='round,pad=0.01,rounding_size=0.025',
-            linewidth=1.2,
-            edgecolor='black',
-            facecolor=(1, 1, 1, 0.6),  # partially transparent white
-            transform=fig.transFigure,  # IMPORTANT: place in figure coords
-            zorder=inset_ax.get_zorder() - 1
-        )
-        fig.add_artist(rect)
+            for t in texts:
+                t.set_visible(False)
+            for i, wedge in enumerate(wedges):
+                ang = (wedge.theta2 + wedge.theta1) / 2.0  # angle in degrees
+                x = 0.6 * np.cos(np.deg2rad(ang))  # radius scaling -> closer to center
+                y = 0.6 * np.sin(np.deg2rad(ang))
+                inset_ax.text(
+                    x, y,
+                    f'{labels[i]}\n{vals[i]:.0%}',
+                    ha='center', 
+                    va='center',
+                    fontsize=7
+                )
+            fig.canvas.draw()
+            pad = 0.015
+            bbox = inset_ax.get_position()
+            rect = FancyBboxPatch(
+                (bbox.x0 + pad, bbox.y0 + pad),
+                bbox.width - pad * 2, 
+                bbox.height + pad,
+                boxstyle='round,pad=0.01,rounding_size=0.025',
+                linewidth=1.2,
+                edgecolor='black',
+                facecolor=(1, 1, 1, 0.6),  # partially transparent white
+                transform=fig.transFigure,  # IMPORTANT: place in figure coords
+                zorder=inset_ax.get_zorder() - 1
+            )
+            fig.add_artist(rect)
         responsive_columns([fig])

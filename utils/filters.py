@@ -54,6 +54,27 @@ def get_options_sorting_key(cat: str) -> Callable[[str], object]:
     return default_key
 
 
+def render_toggle(trendline=True, rolling_avg=True) -> None:
+    with st.sidebar:
+        st.toggle(
+            'Data',
+            value=True,
+            key='data'
+        )
+        if trendline:
+            st.toggle(
+                'Trendlines',
+                value=True,
+                key='trendline'
+            )
+        if rolling_avg:
+            st.toggle(
+                'Rolling average',
+                value=True,
+                key='rolling_avg'
+            )
+
+
 def render_interval_filter(page_name: str, default: str = 'Month') -> str:
     """
     Displays a sidebar radio button for selecting the interval and stores the selection in Settings.

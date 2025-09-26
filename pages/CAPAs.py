@@ -10,7 +10,7 @@ import streamlit as st
 from read_data.read_capas import read_capa_data
 from utils import compute_bin_width, compute_cts, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
-from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
@@ -252,10 +252,16 @@ def plot_capa_age() -> Union[Tuple[plt.Figure, plt.Axes], str]:
             Matplotlib Figure and Axes objects
     """
     fig, ax = plt.subplots()
+    ax.set_title('CAPA Age')
+    
+    if 'data' in st.session_state and not st.session_state['data']:
+        display_no_data_msg('Toggle "Data" on in the sidebar to plot!', fig, ax)
+        return fig, ax
     
     open_capas = filtered_df_capas[filtered_df_capas['Status'] == 'Open']
     if len(open_capas) == 0:
         display_no_data_msg('No open CAPAs, so cannot plot CAPA age.', fig, ax)
+        return fig, ax
     
     open_short = open_capas[open_capas['Age'] < 365]
     open_long = open_capas[open_capas['Age'] >= 365]
@@ -287,7 +293,6 @@ def plot_capa_age() -> Union[Tuple[plt.Figure, plt.Axes], str]:
     )
     
     # Titles and labels
-    ax.set_title('CAPA Age')
     ax.set_xlabel('# Days Open')
     ax.set_ylabel('# Open CAPAs')
     
@@ -305,6 +310,7 @@ if __name__ == '__main__':
     if not isinstance(df_capas, str):       
         to_display = []
         
+        render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_capas[list(DATE_COLS['CAPAs'])].min().min().to_period(interval[0])
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
@@ -359,6 +365,7 @@ if __name__ == '__main__':
             y_label='% passed effectiveness check',
             is_pct=True,
             label_missing='No CAPAs submitted',
+            no_data_msg=f'No CAPAs meeting the selected criteria were submitted {period_string}, so cannot plot CAPA effectiveness.'
         )
         to_display.append(plot[0])
         

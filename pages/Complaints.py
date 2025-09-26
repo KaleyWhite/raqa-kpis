@@ -9,7 +9,7 @@ from read_data.read_complaints import read_complaint_data
 from read_data.read_usage import read_usage_data
 from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
-from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
@@ -139,6 +139,7 @@ if __name__ == '__main__':
     if not isinstance(df_complaints, str):
         to_display = []
         
+        render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_complaints[list(DATE_COLS['Complaints'])].min().min().to_period(interval[0])
         start, end = render_period_filter(PAGE_NAME, interval, min_period)
@@ -173,7 +174,6 @@ if __name__ == '__main__':
             ])
         else:
             complaint_pct, complaint_ratio, pct_ratio_start, msgs = compute_complaint_pct_ratio()
-            st.write(msgs)
             plot = plot_bar(
                 PAGE_NAME,
                 complaint_pct, 

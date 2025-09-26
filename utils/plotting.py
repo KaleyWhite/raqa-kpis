@@ -186,7 +186,7 @@ def plot_bar(
             y_pred = compute_trendline(y_values, pred_before, pred_after, clip_min, clip_max)
             trend_color = kwargs.get('trendline_color', RAD_COLOR)
             ax.plot(x_labels, y_pred, linestyle='dashed', color=trend_color,
-                    alpha=0.7, label='Trend' if not trendline_msgs else 'Trend*')
+                    alpha=0.7, label='Linear trend' if not trendline_msgs else 'Linear trend*')
             if trendline_msgs:
                 msgs.append('*Trendline calculation excludes ' + items_in_a_series(trendline_msgs, comma_for_clarity=True) + '.')
             y_lim = max(y_lim, y_pred.max())

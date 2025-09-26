@@ -13,7 +13,7 @@ import streamlit as st
 from read_data.read_training import read_training_data
 from utils import init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, INTERVALS, PROD_COLORS, RAD_COLOR
-from utils.filters import render_interval_filter, render_period_filter
+from utils.filters import render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
 
@@ -152,7 +152,9 @@ def plot_training_completion() -> Tuple[Figure, Axes]:
     ]
     fig, ax = plt.subplots()
     title = 'Training Completion as of ' + datetime.now().strftime('%Y-%m-%d')
-    if len(curr_period_training) == 0:
+    if 'data' in st.session_state and not st.session_state['data']:
+        display_no_data_msg('Toggle "Data" in the sidebar to plot!', fig, ax, title)
+    elif len(curr_period_training) == 0:
         display_no_data_msg(f'No training was assigned for this {interval.lower()}, so cannot plot training completion.', fig, ax, title)
     else:
         ax.grid(axis='y', alpha=0.7, zorder=1)
@@ -186,6 +188,7 @@ if __name__ == '__main__':
     st.markdown('**Note**: This is dummy data! REAL QMS training stats will be provided once we roll out QMS training in Matrix!')
     show_data_srcs('Training', df_training_mo if isinstance(df_training_mo, str) else None)
     if not isinstance(df_training_mo, str):
+        render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         training_commitment_percentage = compute_training_commitment()
         min_period = df_training_mo[interval].min()

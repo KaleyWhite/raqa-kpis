@@ -6,7 +6,7 @@ import streamlit as st
 from read_data.read_usage import read_usage_data
 from utils import init_page, show_data_srcs
 from utils.constants import ALL_PERIODS
-from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.settings import get_settings
 from utils.text_fmt import period_str
@@ -25,6 +25,7 @@ if __name__ == '__main__':
         settings = get_settings()
         page = settings.get_page(PAGE_NAME)
         
+        render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_usage[interval].min()
         max_period = ALL_PERIODS[interval][-1]
@@ -46,7 +47,7 @@ if __name__ == '__main__':
             clip_min=0,
             title='Usage Volume',
             no_data_msg='No usage matching your criteria occurred' + (' during ' + period_str(start, interval) if start == end else ' between ' + period_str(start, interval) + ' and ' + period_str(end, interval)) + '.',
-            omit_legend=['Number Of Runs']
+            omit_legend_entries=['Number Of Runs']
         )
         to_display.append(plot[0])
             

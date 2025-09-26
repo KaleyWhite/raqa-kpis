@@ -7,8 +7,8 @@ import streamlit as st
 from read_data.read_audits import read_audit_data
 from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
 from utils.constants import PROD_COLORS
-from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
-from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter
+from utils.plotting import plot_bar, responsive_columns
+from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
 from utils.settings import get_settings
 from utils.text_fmt import period_str
 
@@ -69,6 +69,7 @@ if __name__ == '__main__':
         settings = get_settings()
         page = settings.get_page(PAGE_NAME)
         
+        render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_audits['Start ' + interval].min()
         min_period_str = period_str(min_period, interval)
