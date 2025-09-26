@@ -142,10 +142,19 @@ def plot_bar(
     if filtered_data.eq(0).all() or filtered_data.isna().all():
         display_no_data_msg(kwargs.get('no_data_msg', 'No data'), fig, ax)
         return fig, ax
+    
+    show_data = 'data' not in st.session_state or st.session_state['data']
+    show_trendline = trendline and ('trendline' not in st.session_state or st.session_state['trendline'])
+    show_rolling_avg = rolling_avg and ('rolling_avg' not in st.session_state or st.session_state['rolling_avg'])
+    if not show_data and not show_trendline and not show_rolling_avg:
+        display_no_data_msg('Toggle on in the sidebar to plot!', fig, ax)
+        return fig, ax
 
     msgs = kwargs.get('msgs', [])
     all_periods = pd.period_range(start=start, end=end, freq=interval[0])
     x_labels = [period_str(period, interval) for period in all_periods]
+    
+    y_lim = -float('inf')
 
     if grouped_data is None:
         bar_data = data
@@ -154,11 +163,13 @@ def plot_bar(
         bar_data = grouped_data
 
     filtered_bar_data = bar_data[start:end].copy().fillna(0)
-    filtered_bar_data.plot(kind='bar', ax=ax, alpha=0.7, **kwargs.get('bar_kwargs', {'stacked': True}))
+    if show_data:
+        filtered_bar_data.plot(kind='bar', ax=ax, alpha=0.7, **kwargs.get('bar_kwargs', {'stacked': True}))
+        y_lim = max(y_lim, filtered_bar_data.max())
 
     is_pct = kwargs.get('is_pct', False)
         
-    if trendline and not filtered_data.isna().all():
+    if show_trendline:
         y_values = filtered_data.copy()
         pred_before = pred_after = 0
         trendline_msgs = []
@@ -178,11 +189,9 @@ def plot_bar(
                     alpha=0.7, label='Trend' if not trendline_msgs else 'Trend*')
             if trendline_msgs:
                 msgs.append('*Trendline calculation excludes ' + items_in_a_series(trendline_msgs, comma_for_clarity=True) + '.')
-            y_lim = max(y_pred.max(), filtered_data.max())
-        else:
-            y_lim = filtered_data.max() 
+            y_lim = max(y_lim, y_pred.max())
             
-    if rolling_avg:
+    if show_rolling_avg:
         rolling_avg_color = kwargs.get('rolling_avg_color', RAD_COLOR)
         rolling_avg = data.rolling(window=3, min_periods=3).mean()[start:].dropna()
         if end == max_period:
@@ -202,6 +211,7 @@ def plot_bar(
     if 'tol_lower' in kwargs or 'tol_upper' in kwargs:
         tol_lower = kwargs.get('tol_lower', 0)
         tol_upper = kwargs.get('tol_upper', y_lim)
+        y_lim = max(y_lim, tol_upper)
         ax.axhspan(tol_lower, tol_upper, color='green', alpha=0.5, label='Quality goal')
         hline_args = {'color': 'green', 'linestyle': '--', 'linewidth': 1}
         if tol_lower:
@@ -233,7 +243,7 @@ def plot_bar(
         # Remove the unwanted legend entries
         handles, labels = ax.get_legend_handles_labels()
         filtered = [(h, l) for h, l in zip(handles, labels) if l not in kwargs.get('omit_legend_entries', [])]
-        ax.legend(*zip(*filtered))  # Update legend with filtered entries
+        ax.legend(*zip(*filtered), loc='upper right')  # Update legend with filtered entries
     
     msg_y = -0.15
     for msg in msgs: 
