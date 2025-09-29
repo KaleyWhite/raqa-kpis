@@ -9,7 +9,7 @@ from read_data import add_period_cols
 from utils.constants import RAD_DATE
 
 
-#@st.cache_data
+@st.cache_data
 def read_ae_data() -> Union[pd.DataFrame, str]:
     """
     Returns a `DataFrame` of adverse event data for certain device types, from the FDA AE database 
@@ -29,7 +29,9 @@ def read_ae_data() -> Union[pd.DataFrame, str]:
         -  Removes suffixes like "inc", "gmbh", and "publ".
         -  Corrects certain spellings.
         """
-        name = re.sub(r',? INC.?| GMBH| (PUBL)', r'', name)
+        name = re.sub(r',? INC.?| GMBH| (PUBL)', r'', name).strip()
+        if name.upper() in ['', 'UNK', 'UNKNOWN']:
+            return 'Unknown'
         if name.startswith('ACCURAY'):
             name = 'ACCURAY'
         elif name.startswith('BRAINLAB') or name.startswith('BRAIN-LAB'):
@@ -57,7 +59,9 @@ def read_ae_data() -> Union[pd.DataFrame, str]:
         Normalizes "device.brand_name" API field value
         """
         name = re.sub(r'( ?\d+.\d+,? ?)+| TREATMENT PLANNING SYSTEM', r'', name)
-        name = re.sub(r'\(SWIFT\)', 'SWIFT', name)
+        name = re.sub(r'\(SWIFT\)', 'SWIFT', name).strip()
+        if not name:
+            return 'Unknown'
         if name == 'BRAIN-LAB':
             name = 'BRAINLAB'
         elif name.startswith('CYBERKNIFE'):
@@ -90,7 +94,7 @@ def read_ae_data() -> Union[pd.DataFrame, str]:
 
     res = requests.get(
         'https://api.fda.gov/device/event.json',
-        params={'search': search_query, 'limit': 50000},
+        params={'search': search_query, 'limit': 1000},
     ).json()
 
     if 'error' in res:
