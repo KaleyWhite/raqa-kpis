@@ -205,20 +205,17 @@ def render_breakdown_fixed(page_name: str, df: pd.DataFrame) -> pd.DataFrame:
     settings = get_settings()
     page = settings.get_page(page_name)
 
-    def get_unique(col):
+    def get_unique(col: str) -> list[str]:
         """
         Returns unique values in a string or list column. If a list column, the unique individual
         list elements, not the lists themselves, are returned. Assumes all values are strings or all
         values are lists of strings.
         
-        Breakdown category options are any columns in the page's constants.BREAKDOWN_COLS list unless
-        there are more than five unique values (this would make a messy plot!)
-        
         Parameters:
             col (str): The DataFrame column whose unique values to return
             
         Returns:
-            List[str]: List of unqiue values in the DataFrame column
+            list[str]: List of unique values in the DataFrame column
         """
         if len(df) == 0:  # Empty DataFrame -> no values
             return []
@@ -229,19 +226,23 @@ def render_breakdown_fixed(page_name: str, df: pd.DataFrame) -> pd.DataFrame:
             return sorted(df[col].unique())
 
     # Breakdown categories
-    breakdown_cat_options = [c for c in BREAKDOWN_COLS[page_name] if len(get_unique(c)) <= 5]  # Restrict to columns w/ at most 5 unique values
+    breakdown_cat_options = [
+        c for c in BREAKDOWN_COLS[page_name] if len(get_unique(c)) <= 5
+    ]  # Restrict to columns w/ at most 5 unique values
     breakdown_cat_options.sort()
     breakdown_key = f'{page_name}_breakdown'
 
-    # Initialize session state only if missing
-    if breakdown_key not in st.session_state or st.session_state[breakdown_key] not in breakdown_cat_options:
-        st.session_state[breakdown_key] = page.breakdown if page.breakdown in breakdown_cat_options else None
+    # Initialize session state only if missing (don't overwrite on rerun)
+    if breakdown_key not in st.session_state:
+        st.session_state[breakdown_key] = (
+            page.breakdown if page.breakdown in breakdown_cat_options else None
+        )
 
-    # Let Streamlit fully manage the value via key (no default/index needed)
+    # Let Streamlit fully manage the value via key
     st.selectbox(
         'Select category to break down by (leave as None to fix all)',
         options=[None] + breakdown_cat_options,
-        key=breakdown_key
+        key=breakdown_key,
     )
 
     page.breakdown = st.session_state[breakdown_key]
@@ -260,7 +261,7 @@ def render_breakdown_fixed(page_name: str, df: pd.DataFrame) -> pd.DataFrame:
             st.multiselect(
                 f'Select "{cat}" value(s)',
                 options=options,
-                key=filter_key
+                key=filter_key,
             )
 
             page.filters[cat] = st.session_state[filter_key]
