@@ -230,7 +230,7 @@ def plot_bar(
             ax.axhline(y=tol_upper, **hline_args)
      
     # Markers for missing data       
-    if 'label_missing' in kwargs:
+    if 'label_missing' in kwargs and bar_data[start:end].isna().any():
         na_labels = [label for label, is_na in zip(x_labels, bar_data[start:end].isna()) if is_na]
         ax.plot(na_labels, [y_lim * 0.01] * len(na_labels),
                 marker='_', color='black', linestyle='None', markeredgewidth=1.5,
