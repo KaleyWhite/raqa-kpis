@@ -9,25 +9,26 @@ from read_data import add_period_cols
 from utils.constants import RAD_DATE
 
 
-@st.cache_data
+#@st.cache_data
 def read_ae_data() -> Union[pd.DataFrame, str]:
     """
-    Returns a `DataFrame` of Radformation product adverse event data from the FDA adverse event database API.
+    Returns a `DataFrame` of adverse event data for certain device types, from the FDA AE database 
+    API.
 
-    The function fetches adverse event reports for specific Radformation devices from the FDA API,
-    normalizes manufacturer and device names, converts date fields to `datetime`, and adds period columns 
-    for month, quarter, and year using `add_period_cols`.
+    The function fetches AE reports from the FDA API, normalizes manufacturer and device names, 
+    converts date fields to `datetime`, and adds period columns for month, quarter, and year using 
+    `add_period_cols`. Restricts results to those received since Rad was incorporated.
 
     Returns:
         Union[pd.DataFrame, str]: A `DataFrame` containing adverse event data, or an error string if
-        the API request failed.
-
-    Example:
-        >>> df_aes = read_aes()
-        >>> print(df_aes.head())
+                                  the API request failed.
     """
-
     def normalize_manufacturer_name(name: str) -> str:
+        """
+        Normalizes "device.manufacturer_d_name" API field.
+        -  Removes suffixes like "inc", "gmbh", and "publ".
+        -  Corrects certain spellings.
+        """
         name = re.sub(r',? INC.?| GMBH| (PUBL)', r'', name)
         if name.startswith('ACCURAY'):
             name = 'ACCURAY'
@@ -52,6 +53,9 @@ def read_ae_data() -> Union[pd.DataFrame, str]:
         return name
 
     def normalize_device_name(name: str) -> str:
+        """
+        Normalizes "device.brand_name" API field value
+        """
         name = re.sub(r'( ?\d+.\d+,? ?)+| TREATMENT PLANNING SYSTEM', r'', name)
         name = re.sub(r'\(SWIFT\)', 'SWIFT', name)
         if name == 'BRAIN-LAB':
@@ -86,7 +90,7 @@ def read_ae_data() -> Union[pd.DataFrame, str]:
 
     res = requests.get(
         'https://api.fda.gov/device/event.json',
-        params={'search': search_query, 'limit': 100},
+        params={'search': search_query, 'limit': 50000},
     ).json()
 
     if 'error' in res:
