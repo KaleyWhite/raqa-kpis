@@ -3,9 +3,8 @@ from typing import Union
 import pandas as pd
 import streamlit as st
 
-from read_data import correct_date_dtype
+from read_data import add_period_cols, correct_date_dtype
 from read_data.salesforce import get_sf_records, sf
-from utils.constants import INTERVALS
 
 
 @st.cache_data
@@ -57,8 +56,6 @@ def read_usage_data() -> Union[pd.DataFrame, str]:
     df_usage['Device'] = df_usage['Web Institution Product'].apply(lambda x: x[x.rfind(' - ') + 3:])
     df_usage = df_usage.drop('Web Institution Product', axis=1)
 
-    # Add period columns for each defined interval
-    for interval_ in INTERVALS:
-        df_usage[interval_] = df_usage['Usage Date'].dt.to_period(interval_[0])
+    add_period_cols(df_usage)
 
     return df_usage
