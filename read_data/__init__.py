@@ -7,12 +7,12 @@ from utils.constants import INTERVALS
 
 def add_period_cols(df: pd.DataFrame, cols: Optional[List[str]] = None) -> None:
     """
-    Adds columns for the month, quarter, and year in which the date value lies.
+    Adds columns for the month, quarter, and year in which the date values lie.
 
     Parameters:
         df (pd.DataFrame): DataFrame to add the columns to.
         cols (Optional[List[str]]): Column names to create new columns based on. 
-            If not provided, uses all columns whose names include 'Date'.
+                                    If not provided, uses all columns whose names include 'Date'.
         
     Example:
         >>> df = pd.DataFrame({'Created Date': ['2023-01-15', '2023-04-20']})
@@ -37,11 +37,13 @@ def correct_date_dtype(
 ) -> pd.DataFrame:
     """
     Convert the specified columns of a DataFrame to datetime type.
+    
+    Ignores time parts and normalizes to UTC.
 
     Parameters:
         df (pd.DataFrame): DataFrame whose column types to convert.
         date_columns (Optional[List[str]]): Columns whose types to convert. Defaults to None. 
-            If None, converts all columns whose names contain "Date".
+                                            If None, converts all columns whose names contain "Date".
         date_format (str): The format to use when parsing dates. Defaults to '%Y-%m-%d'.
 
     Returns:
