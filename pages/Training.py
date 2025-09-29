@@ -12,7 +12,7 @@ import streamlit as st
 
 from read_data.read_training import read_training_data
 from utils import init_page, show_data_srcs
-from utils.constants import ALL_PERIODS, INTERVALS, PROD_COLORS, RAD_COLOR
+from utils.constants import ALL_PERIODS, INTERVALS, RAD_COLOR
 from utils.filters import render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
 from utils.text_fmt import period_str
@@ -202,7 +202,7 @@ if __name__ == '__main__':
             interval=interval,
             start=start,
             end=end,
-            bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'},
+            bar_kwargs={'label': '_nolegend_'},
             tol_lower=80,
             min_period=min_period, 
             min_period_msg=f' as Rad did not implement the current QMS training process until partway through the {interval.lower()}', 

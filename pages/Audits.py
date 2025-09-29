@@ -6,7 +6,6 @@ import streamlit as st
 
 from read_data.read_audits import read_audit_data
 from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
-from utils.constants import PROD_COLORS
 from utils.plotting import plot_bar, responsive_columns
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
 from utils.settings import get_settings
@@ -58,8 +57,8 @@ def compute_audit_commitment(
     return commitment
 
 
-df_audits = read_audit_data()
-
+df_audits, df_findings, df_sampled_docs = read_audit_data()
+st.write(df_audits, df_findings, df_sampled_docs)
 
 if __name__ == '__main__':
     st.title('Audits')
@@ -97,7 +96,7 @@ if __name__ == '__main__':
         plot = plot_bar(
             PAGE_NAME,
             compute_audit_commitment(interval),
-            bar_kwargs={'color': PROD_COLORS['N/A'], 'label': '_nolegend_'},
+            bar_kwargs={'label': '_nolegend_'},
             tol_lower=100,
             min_period_msg=f' as there are no records of audits before this {interval.lower()}',
             max_period_msg=f' as there may be more audits completed this {interval.lower()}',

@@ -39,7 +39,7 @@ DATE_COLS = {
 # Options for fixed vs. breakdown columns on each page
 BREAKDOWN_COLS = {
     'Adverse Events': ['Manufacturer', 'Device', 'Device Type', 'Event Type'],
-    'Audits': ['Internal/External', 'Audit Type', 'Auditing Organization'],
+    'Audits': ['Internal/External', 'Audit Type', 'Scope', 'Criteria', 'Auditing Organization', 'Sampled/Reviewed Documents'],
     'Benchmarks': [],
     'CAPAs': ['Disposition', 'Effectiveness Verification Status', 'Priority', 'Problem Type', 'Product', 'Type'],
     'Complaints': ['Device', 'Complaint Status', 'Is Device Malfunction', 'Is Specification Failure', 'Is User Error', 'Is Patient Treated', 'Is Investigation Required', 'Is Safety Issue', 'Is Device Malfunction Cause Injury'],
