@@ -11,9 +11,7 @@ from read_data.salesforce import get_sf_records, sf
 def read_usage_data() -> Union[pd.DataFrame, str]:
     """
     Reads product usage data from Salesforce and enriches it with account and device information.
-
-    Parameters:
-        None
+    Excludes accounts whose names contain "test" or "radformation" (case-insensitive).
 
     Returns:
         Union[pd.DataFrame, str]:
@@ -55,6 +53,9 @@ def read_usage_data() -> Union[pd.DataFrame, str]:
     # Extract device name from "Web Institution Product"
     df_usage['Device'] = df_usage['Web Institution Product'].apply(lambda x: x[x.rfind(' - ') + 3:])
     df_usage = df_usage.drop('Web Institution Product', axis=1)
+    
+    # Remove Radformation data
+    df_usage = df_usage[~df_usage['Account'].str.contains('test|radformation', case=False, na=False)]
 
     add_period_cols(df_usage)
 
