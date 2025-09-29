@@ -174,7 +174,7 @@ def plot_bar(
     filtered_bar_data = bar_data[start:end].copy().fillna(0)
     if show_data:
         filtered_bar_data.plot(kind='bar', ax=ax, alpha=0.7, **kwargs.get('bar_kwargs', {'stacked': True}))
-        y_lim = max(y_lim, filtered_bar_data.max())
+        y_lim = max(y_lim, filtered_bar_data.max() if isinstance(filtered_bar_data, pd.Series) else filtered_bar_data.sum(axis=1).max())
 
     is_pct = kwargs.get('is_pct', False)
         
