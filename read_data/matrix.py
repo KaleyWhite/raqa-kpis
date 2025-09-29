@@ -49,7 +49,7 @@ def get_multiselect(category: str) -> List[str]:
     for fld in cat['fieldList']:
         if fld['fieldType'] == 'dropdown':
             param = json.loads(fld['fieldParam'])
-            if param['maxItems'] != 1:
+            if int(param['maxItems']) > 1:
                 multiselect.append(fld['label'])
     return multiselect
 
