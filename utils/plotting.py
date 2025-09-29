@@ -27,6 +27,7 @@ def display_no_data_msg(
 
     Clears all tick marks and labels, keeps a black box outline, and prints the message 
     in the vertical center, left-aligned. Optionally, a title can be set for the Axes.
+    If no Figure/Axes are provided, creates them.
 
     Parameters:
         msg (str): The message to display inside the plot area.
@@ -81,37 +82,44 @@ def plot_bar(
     Supports:
     - Grouped bar data (stacked bars by category)
     - Linear trendline estimation with optional prediction before/after the interval
-    - Rolling average overlay (3-period by default)
+    - Three-period rolling average overlay
     - Quality goal tolerance shading (green region for acceptable ranges)
     - Optional markers for missing values
     - Contextual annotations and axis formatting
     
+    Y-axis limit is the maximum shown value (from data, trendline, rolling average, or upper tolerance value).
+    
     If there is no data to plot, returns an empty plot with the missing-data message.
 
     Parameters:
-        page_name (str): Unique identifier for the page.
+        page_name (str): Unique identifier for the page. Should be a value from constants.SRCS.
         data (pd.Series): Time-indexed (PeriodIndex) series of values to plot.
         grouped_data (Optional[pd.DataFrame]): If provided, used instead of `data` for grouped/stacked bars.
         trendline (bool): Whether to overlay a dashed linear trendline. Defaults to True.
-        rolling_avg (bool): Whether to overlay a rolling average line. Defaults to True.
+                          For a trendline to be shown, `trendline` must be true AND the trendline toggle
+                          must be on.
+        rolling_avg (bool): Whether to overlay a rolling average line. Defaults to True. For rolling
+                            average to be shown, `rolling_avg` must be true AND the rolling-average toggle
+                            must be on.
         **kwargs: Additional configuration options:
-            - interval (str): Time interval (value from INTERVALS).
-            - start (Period): Start of plotting range.
-            - end (Period): End of plotting range.
-            - min_period, max_period (Period): Full data extent (for reindexing).
+            - start (Period): Start of plotting range. If not provided, uses the page's PageState's start.
+            - end (Period): End of plotting range. If not provided, uses the page's PageState's end.
+            - min_period, max_period (Period): Full data extent (for reindexing). If not provided, uses the 
+                                               earliest and latest periods in ALL_PERIODS.
             - bar_kwargs (dict): Extra kwargs for `DataFrame.plot(kind='bar', ...)`.
             - x_label (str): X-axis label.
             - y_label (str): Y-axis label.
             - title (str): Plot title.
             - y_integer (bool): Force integer y-axis ticks.
             - is_pct (bool): If True, y-axis represents percentages (0–100).
-            - clip_min, clip_max (float): Bounds to clip trendline predictions.
-            - tol_lower, tol_upper (float): Lower/upper bounds for green-shaded tolerance area.
-            - trendline_color (str): Color for trendline.
-            - rolling_avg_color (str): Color for rolling average line.
+            - clip_min, clip_max (float): Bounds to clip trendline predictions. clip_max is overridden if `is_pct`
+                                          is True.
+            - tol_lower, tol_upper (float): Lower/upper bounds for green-shaded tolerance area. If neither is
+                                            provided, the green region is not shown.
             - msgs (List[str]): Footnote-style messages annotated below the plot.
             - min_period_msg, max_period_msg (str): Notes if first/last periods are excluded from trendline.
-            - label_missing (str): Legend entry for missing-value markers.
+            - label_missing (str): Legend entry for missing-value markers. If not provided, missing-value markers are
+                                   not used.
             - no_data_msg (str): Text to display on an empty plot if there is no data to plot.
             - missing_as_zero (bool): Fill missing periods with zero if True.
             - omit_legend_entries (List[str]): List of legend labels to hide.
@@ -120,18 +128,19 @@ def plot_bar(
         Tuple[plt.Figure, plt.Axes]: Figure and axes objects of the plot,
         or None if no data is available to plot.
     """
+    # Retrieve settings for the page
     settings = get_settings()
     page = settings.get_page(page_name)
     interval = page.interval
-    
     start = kwargs.get('start', page.get_period(interval)[0])
     end = kwargs.get('end', page.get_period(interval)[1])
-    
+
     min_period = kwargs.get('min_period', ALL_PERIODS[interval][0])
     max_period = kwargs.get('max_period', ALL_PERIODS[interval][-1])
     all_periods_all = pd.period_range(start=min_period, end=max_period, freq=interval[0])
     data = data.reindex(all_periods_all)
     
+    # Replace missing values with zero
     if kwargs.get('missing_as_zero', False):
         data = data.fillna(0)
    
@@ -156,12 +165,12 @@ def plot_bar(
     
     y_lim = -float('inf')
 
+    # Bar chart
     if grouped_data is None:
         bar_data = data
     else:
         grouped_data = grouped_data.reindex(ALL_PERIODS[interval], fill_value=0)
         bar_data = grouped_data
-
     filtered_bar_data = bar_data[start:end].copy().fillna(0)
     if show_data:
         filtered_bar_data.plot(kind='bar', ax=ax, alpha=0.7, **kwargs.get('bar_kwargs', {'stacked': True}))
@@ -169,6 +178,7 @@ def plot_bar(
 
     is_pct = kwargs.get('is_pct', False)
         
+    # Linear trendline
     if show_trendline:
         y_values = filtered_data.copy()
         pred_before = pred_after = 0
@@ -184,15 +194,14 @@ def plot_bar(
         if len(y_values) > 2:
             clip_min, clip_max = kwargs.get('clip_min', 0 if is_pct else None), kwargs.get('clip_max', 100 if is_pct else None)
             y_pred = compute_trendline(y_values, pred_before, pred_after, clip_min, clip_max)
-            trend_color = kwargs.get('trendline_color', RAD_COLOR)
-            ax.plot(x_labels, y_pred, linestyle='dashed', color=trend_color,
+            ax.plot(x_labels, y_pred, linestyle='dashed', color=RAD_COLOR,
                     alpha=0.7, label='Linear trend' if not trendline_msgs else 'Linear trend*')
             if trendline_msgs:
                 msgs.append('*Trendline calculation excludes ' + items_in_a_series(trendline_msgs, comma_for_clarity=True) + '.')
             y_lim = max(y_lim, y_pred.max())
-            
+     
+    # Three-period rolling average       
     if show_rolling_avg:
-        rolling_avg_color = kwargs.get('rolling_avg_color', RAD_COLOR)
         rolling_avg = data.rolling(window=3, min_periods=3).mean()[start:].dropna()
         if end == max_period:
             rolling_avg = rolling_avg[:end - 1]
@@ -200,14 +209,15 @@ def plot_bar(
             rolling_avg = rolling_avg[:end]
         if len(rolling_avg) != 0:
             x_vals = [period_str(period, interval) for period in rolling_avg.index]
-            ax.plot(x_vals, rolling_avg, linestyle='-', color=rolling_avg_color,
+            ax.plot(x_vals, rolling_avg, linestyle='-', color=RAD_COLOR,
                     label='Three-' + interval.lower() + ' rolling average')
-            ax.scatter(x_vals, rolling_avg, color=rolling_avg_color, s=10, alpha=0.7, label='_nolegend_')
+            ax.scatter(x_vals, rolling_avg, color=RAD_COLOR, s=10, alpha=0.7, label='_nolegend_')
             y_lim = max(y_lim, rolling_avg.max())
     
     if is_pct:
         y_lim = 100    
-        
+      
+    # Tolerance  
     if 'tol_lower' in kwargs or 'tol_upper' in kwargs:
         tol_lower = kwargs.get('tol_lower', 0)
         tol_upper = kwargs.get('tol_upper', y_lim)
@@ -218,13 +228,15 @@ def plot_bar(
             ax.axhline(y=tol_lower, **hline_args)
         if tol_upper:
             ax.axhline(y=tol_upper, **hline_args)
-            
+     
+    # Markers for missing data       
     if 'label_missing' in kwargs:
         na_labels = [label for label, is_na in zip(x_labels, bar_data[start:end].isna()) if is_na]
         ax.plot(na_labels, [y_lim * 0.01] * len(na_labels),
                 marker='_', color='black', linestyle='None', markeredgewidth=1.5,
                 label=kwargs['label_missing'])
         
+    # Format x-axis
     ax.set_xlabel(kwargs.get('x_label', interval))
     x_positions = range(len(filtered_data))
     ax.set_xlim(x_positions[0] - 0.5, x_positions[-1] + 0.5)
@@ -232,12 +244,14 @@ def plot_bar(
     ax.set_xticks(tick_indices)
     ax.set_xticklabels([x_labels[i] for i in tick_indices], rotation=90)
     
+    # Format y-axis
     ax.set_ylabel(kwargs.get('y_label'))
     ax.set_ylim(-0.025 * y_lim, 1.025 * y_lim)
     ax.ticklabel_format(style='plain', axis='y')
     if kwargs.get('y_integer'):
         ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     
+    # Format legend
     if ax.get_legend_handles_labels():
         ax.legend(loc='upper right')
         # Remove the unwanted legend entries
@@ -245,6 +259,7 @@ def plot_bar(
         filtered = [(h, l) for h, l in zip(handles, labels) if l not in kwargs.get('omit_legend_entries', [])]
         ax.legend(*zip(*filtered), loc='upper right')  # Update legend with filtered entries
     
+    # Add footnotes
     msg_y = -0.15
     for msg in msgs: 
         fig.text(0, msg_y, textwrap.fill(msg, width=100), ha='left', fontsize=8)
@@ -259,9 +274,6 @@ def sync_window_width() -> None:
 
     This ensures Streamlit can adapt layouts dynamically based on window width.
     Also hides empty iframe gaps using a small style adjustment.
-
-    Returns:
-        None
     """
     components.html(
         """
@@ -307,14 +319,10 @@ def responsive_columns(
         - Other values are passed to `st.write`.
         - None values are ignored.
 
-    Parameters
-    ----------
-    items : Optional[List[Any]]
-        List of items to render.
-    threshold : float, default 700
-        Pixel width threshold to switch layouts.
-    ncols : int, default 2
-        Number of columns when width > threshold.
+    Parameters:
+    items (Optional[List[Any]]): List of items to render.
+    threshold (float): Pixel width threshold to switch layouts. Defaults to 700.
+    ncols (int): Number of columns when width > threshold. Defaults to 2.
 
     Returns
     -------
