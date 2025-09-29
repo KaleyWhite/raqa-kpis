@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -9,21 +9,22 @@ from utils.settings import get_settings
 
 def get_options_sorting_key(cat: str) -> Callable[[str], object]:
     """
-    Returns a sorting key function for a given category.
+    Returns a sorting key function for a given category (column name).
 
     The key function ensures that:
-      - Predefined ordering is applied for known categories (e.g., 'Priority', 'Size').
+      - Predefined ordering is applied for certain categories (e.g., 'Priority', 'Size') 
+        for which lexicographic ordering does not make sense.
       - 'Unknown' and 'N/A' are always placed at the end, with 'Unknown' before 'N/A'.
-      - Any unexpected values are placed after 'N/A'.
       - For categories without predefined ordering, lexicographic sorting is used,
         but 'Unknown' and 'N/A' are still pushed to the end.
 
     Parameters:
-        cat (str): Name of the category for which to generate a sorting key.
+        cat (str): Name of the category (DataFrame column) for which to generate a sorting key.
 
     Returns:
         Callable[[str], object]: A function that takes a string value and returns a sort key.
     """
+    # Non-lexicographically ordered column values
     sorting_orders = {
         'Priority': ['Lowest', 'Low', 'Medium', 'High', 'Highest'],
         'Size': ['Small', 'Medium', 'Large']
@@ -37,13 +38,10 @@ def get_options_sorting_key(cat: str) -> Callable[[str], object]:
                 return len(order)       # put after normal values
             elif x == 'N/A':
                 return len(order) + 1   # put after 'Unknown'
-            try:
-                return order.index(x)
-            except ValueError:
-                return len(order) + 2   # any unexpected value goes after 'N/A'
+            return order.index(x)
         return key
 
-    # Default: lexicographic sort but push Unknown/N/A to the end
+    # Default: lexicographic sort but push Unknown / N/A to the end
     def default_key(x: str):
         if x == 'Unknown':
             return (1, 0)
@@ -168,58 +166,65 @@ def render_period_filter(
 
 def render_breakdown_fixed(page_name: str, df: pd.DataFrame) -> pd.DataFrame:
     """
-    Renders breakdown and fixed-category filters for a given page and returns filtered data.
+    Renders breakdown selectbox and fixed-category multiselect filters for a page,
+    returning the filtered DataFrame. Works for columns containing lists or strings.
     """
     settings = get_settings()
     page = settings.get_page(page_name)
 
+    def get_unique(col):
+        if len(df) == 0:
+            return []
+        first_val = df[col].iloc[0]
+        if isinstance(first_val, list):
+            return sorted({item for lst in df[col] for item in lst})
+        else:
+            return sorted(df[col].dropna().unique())
+
     # Breakdown categories
-    breakdown_cat_options = [c for c in BREAKDOWN_COLS[page_name] if df[c].nunique() <= 5]
+    breakdown_cat_options = [c for c in BREAKDOWN_COLS[page_name] if len(get_unique(c)) <= 5]
     breakdown_cat_options.sort()
     breakdown_key = f'{page_name}_breakdown'
 
-    if breakdown_key not in st.session_state:
+    # Initialize session state only if missing
+    if breakdown_key not in st.session_state or st.session_state[breakdown_key] not in breakdown_cat_options:
         st.session_state[breakdown_key] = page.breakdown if page.breakdown in breakdown_cat_options else None
 
-    # Breakdown selectbox
+    # Let Streamlit fully manage the value via key (no default/index needed)
     st.selectbox(
         'Select category to break down by (leave as None to fix all)',
         options=[None] + breakdown_cat_options,
-        index=0 if st.session_state[breakdown_key] is None
-              else breakdown_cat_options.index(st.session_state[breakdown_key]) + 1,
         key=breakdown_key
     )
+
     page.breakdown = st.session_state[breakdown_key]
 
     # Fixed-category filters
     fixed_categories = [c for c in BREAKDOWN_COLS[page_name] if c != page.breakdown]
-
     with st.expander('Filters', expanded=True):
         for cat in fixed_categories:
-            options = sorted(df[cat].dropna().unique(), key=get_options_sorting_key(cat))
+            options = get_unique(cat)
             filter_key = f'{page_name}_{cat}_filter'
-
+            # Initialize only if missing
             if filter_key not in st.session_state:
                 st.session_state[filter_key] = page.filters.get(cat, options)
 
-            selected = st.multiselect(
-                f'Select {cat} value(s)',
+            # Multiselect, managed fully by session_state
+            st.multiselect(
+                f'Select "{cat}" value(s)',
                 options=options,
-                default=st.session_state[filter_key],
                 key=filter_key
             )
-
-            if not selected:
-                st.html(f'<span style="color:red;font-weight:bold;">Select at least one {cat}</span>')
-                st.stop()
 
             page.filters[cat] = st.session_state[filter_key]
 
     # Apply mask
     mask = pd.Series(True, index=df.index)
     for cat in fixed_categories:
-        mask &= df[cat].isin(page.filters[cat])
+        sample_val = df[cat].iloc[0]
+        if isinstance(sample_val, list):
+            mask &= df[cat].apply(lambda x: any(item in page.filters[cat] for item in x))
+        else:
+            mask &= df[cat].isin(page.filters[cat])
 
     return df.loc[mask]
-
-
