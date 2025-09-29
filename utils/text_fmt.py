@@ -40,7 +40,7 @@ def period_str(period: Union[pd.Timestamp, pd.Period], interval: str = 'Month') 
 
     Parameters:
         period (Union[pd.Timestamp, pd.Period]): The timestamp or period to format.
-        interval (str, optional): Time interval type. Must be one of 'Month', 'Quarter', or 'Year'. Defaults to 'Month'.
+        interval (Optional[str]): Time interval type. Must be one of 'Month', 'Quarter', or 'Year'. Defaults to 'Month'.
 
     Returns:
         str: Formatted string representing the period.
