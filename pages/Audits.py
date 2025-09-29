@@ -57,8 +57,8 @@ def compute_audit_commitment(
     return commitment
 
 
-df_audits, df_findings, df_sampled_docs = read_audit_data()
-st.write(df_audits, df_findings, df_sampled_docs)
+df_audits, df_findings = read_audit_data()
+
 
 if __name__ == '__main__':
     st.title('Audits')
@@ -83,7 +83,6 @@ if __name__ == '__main__':
             PAGE_NAME,
             audit_cts['Start Date'][0],
             grouped_data=audit_cts['Start Date'][1],
-            bar_kwargs={'stacked': True, 'colormap': create_shifted_cmap('tab10', 4)},
             max_period_msg=' as there may be more audits completed this ' + interval.lower(), 
             clip_min=0,
             title='Completed Audits',

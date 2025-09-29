@@ -58,44 +58,6 @@ def create_findings_df(df_audits):
 
 
 @st.cache_data
-def create_docs_sampled_df(df_audits):
-    """
-    Constructs a DataFrame of sampled/reviewed Matrix QMS document titles
-    
-    This function creates a new DataFrame based on the 'ID' and 'Sampled/Reviewed
-    Documents' columns of `df_audits`:
-    -  'Audit ID': From the 'ID' column of `df_audits`
-    -  'Sampled/Reviewed Documents': List of IDs and titles of QMS documents in the "doc"
-                                     field value of the 'Sampled/Reviewed Documents' JSON
-                                     
-    Parameters:
-        df_audits (pd.DataFrame): DataFrame of AUDIT data. Must contain columns 'ID' and
-                                  'Sampled/Referenced Documents'.
-                                  
-    Returns:
-        df (pd.DataFrame): DataFrame with each row represented a sampled/reviewed QMS document
-                            reviewed in an audit
-    """
-    mapped_ids = {}
-    row_dicts = []
-    for id_, row in df_audits.iterrows():
-        sampled = json.loads(row['Sampled/Reviewed Documents'])
-        for doc_list in sampled:
-            doc_titles = []
-            for doc_id in doc_list['doc'].split(','):
-                if doc_id not in mapped_ids:
-                    mapped_ids[doc_id] = get_item_title(doc_id)
-                doc_titles.append(doc_id + ' ' + mapped_ids[doc_id])
-            row_dicts.append({
-                'Audit ID': id_,
-                'Sampled/Reviewed Documents': doc_titles
-            })
-    df = pd.DataFrame.from_records(row_dicts)
-    df['Audit ID'] = df['Audit ID'].astype(str)
-    return df
-
-
-@st.cache_data
 def read_audit_data() -> Union[pd.DataFrame, str]:
     """
     Returns a DataFrame of audit data from Matrix.
@@ -148,28 +110,20 @@ def read_audit_data() -> Union[pd.DataFrame, str]:
     df_audits = correct_date_dtype(matrix_items, date_format='%Y/%m/%d')
     df_audits['Duration'] = df_audits['Duration'].astype(float)
     multiselect_dds = get_multiselect('AUDIT')  # Fields that allow multiple selections
-    st.write(multiselect_dds)
+
     dd_ids = {
-        'dd_auditCriteria': 'Criteria',
-        'dd_auditingOrganization': 'Auditing Organization',
-        'dd_auditScope': 'Scope',
-        'dd_auditType': 'Audit Type',
         'dd_auditTypes': 'Internal/External',
     }
     mapped_dd_ids = map_dropdown_ids(list(dd_ids))
     for dd_id, col in dd_ids.items():  # Replace option ID with its human-readable label
         df_audits[col] = df_audits[col].apply(lambda val: map_dd(dd_id, col, val))
 
-    df_audits.loc[df_audits['Internal/External'] == 'Internal', 'Auditing Organization'] = 'N/A'  # Auditing Organization does not apply to internal audits
-    for col in ['Audit Type', 'Auditing Organization']:
-        df_audits[col] = df_audits[col].fillna('Unknown')
-
     add_period_cols(df_audits, DATE_COLS['Audits'])
     
-    findings_df, docs_sampled_df = create_findings_df(df_audits), create_docs_sampled_df(df_audits)
+    findings_df = create_findings_df(df_audits)
     
     df_audits.index = df_audits.index.astype(str)
-    df_audits = df_audits.drop(columns=['Findings', 'Sampled/Reviewed Documents'])
+    df_audits = df_audits.drop(columns=['Findings'])
     
     # Merge to get lists of finding classifications, findings' referenced standards, and findings' referenced QMS documents
     agg_findings = (
@@ -188,24 +142,9 @@ def read_audit_data() -> Union[pd.DataFrame, str]:
         })
     )
     df_audits = df_audits.join(agg_findings, how='left')
-    
-    # Merge to get list of sampled/reviewed QMS documents
-    agg_docs = (
-        docs_sampled_df
-        .assign(
-            **{
-                'Sampled/Reviewed Documents': docs_sampled_df['Sampled/Reviewed Documents'].map(split_and_clean)
-            }
-        )
-        .groupby('Audit ID')
-        .agg({
-            'Sampled/Reviewed Documents': lambda s: [item for sublist in s for item in sublist]
-        })
-    )
-    df_audits = df_audits.join(agg_docs, how='left')
 
     df_audits['# Findings'] = df_audits['Classification'].apply(lambda lst: len(lst) if isinstance(lst, list) else 0)
     for classification in map_dropdown_ids(['dd_ncFindingClass'])['dd_ncFindingClass']:
         df_audits[f'# {classification}'] = df_audits['Classification'].apply(lambda lst: lst.count(classification) if isinstance(lst, list) else 0)
     
-    return df_audits, findings_df, docs_sampled_df
+    return df_audits, findings_df

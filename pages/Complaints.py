@@ -7,7 +7,7 @@ import streamlit as st
 
 from read_data.read_complaints import read_complaint_data
 from read_data.read_usage import read_usage_data
-from utils import compute_cts, create_shifted_cmap, init_page, show_data_srcs
+from utils import compute_cts, init_page, show_data_srcs
 from utils.constants import ALL_PERIODS, DATE_COLS
 from utils.filters import render_breakdown_fixed, render_interval_filter, render_period_filter, render_toggle
 from utils.plotting import display_no_data_msg, plot_bar, responsive_columns
