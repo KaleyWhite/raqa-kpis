@@ -8,7 +8,7 @@ class PageState:
     """
     Holds state for a single page, including:
 
-    - interval: current interval ('Month', 'Quarter', 'Year', etc.)
+    - interval: current interval (value from constants.INTERVALS)
     - periods: dictionary of start/end periods per interval
     - breakdown: selected breakdown category
     - filters: selected filter options per category
@@ -43,11 +43,11 @@ class Settings:
 
     def get_page(self, name: str) -> PageState:
         """
-        Retrieve the PageState for a given page.
+        Retrieves the PageState for a given page.
 
         If the page does not exist, it is created automatically.
 
-        Args:
+        Parameters:
             name (str): Name of the page.
 
         Returns:
