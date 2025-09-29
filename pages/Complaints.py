@@ -40,13 +40,14 @@ def compute_complaint_pct_ratio() -> Tuple[Optional[pd.Series], Optional[pd.Seri
         Returns four-tuple of None's if there is no usage data during the user-selected time interval.
     """
     msgs: List[str] = []
+    usage_col = 'Usage ' + interval
 
     if 'Complaints_Device_filter' in st.session_state:
         data_usage_device = data_usage[data_usage['Device'].isin(st.session_state['Complaints_Device_filter'])]
     else:  # Device is not filtered
         data_usage_device = data_usage
 
-    min_usage_period = data_usage_device[interval].min()
+    min_usage_period = data_usage_device[usage_col].min()
     pct_ratio_start = start
     if pct_ratio_start <= min_usage_period:
         msgs.append(
@@ -57,7 +58,7 @@ def compute_complaint_pct_ratio() -> Tuple[Optional[pd.Series], Optional[pd.Seri
         )
         pct_ratio_start = min_usage_period + 1
 
-    usage_by_period = data_usage_device.groupby(interval)['Number Of Runs'].sum().reindex(
+    usage_by_period = data_usage_device.groupby(usage_col)['Number Of Runs'].sum().reindex(
         ALL_PERIODS[interval], fill_value=0
     )
     usage_by_period_filtered = usage_by_period[pct_ratio_start:end]
@@ -71,7 +72,7 @@ def compute_complaint_pct_ratio() -> Tuple[Optional[pd.Series], Optional[pd.Seri
 
     complaint_pct = total_cts / usage_by_period * 100
 
-    accts_by_period = data_usage_device.groupby(interval)['Account'].nunique().reindex(
+    accts_by_period = data_usage_device.groupby(usage_col)['Account'].nunique().reindex(
         ALL_PERIODS[interval], fill_value=0
     )
     complaint_ratio = total_cts / accts_by_period
