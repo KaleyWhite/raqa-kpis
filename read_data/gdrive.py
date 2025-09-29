@@ -15,7 +15,7 @@ def construct_gcp_creds(scopes: List[str]) -> service_account.Credentials:
 
     Returns:
         service_account.Credentials: A credentials object that can be used to authenticate
-        GCP API calls with the specified scopes.
+                                     GCP API calls with the specified scopes.
 
     Example:
         >>> creds = construct_gcp_creds(['https://www.googleapis.com/auth/drive.readonly'])
@@ -25,19 +25,16 @@ def construct_gcp_creds(scopes: List[str]) -> service_account.Credentials:
 
 def read_gsheet(spreadsheet_id: str = '1yKiAn_Szx5gW5aGOa85RAl_eScg0vjkGyvQQfGfllLI', sheet_name: str = 'Training', range: str = 'A1:H') -> Union[pd.DataFrame, str]:
     """
-    Returns a `DataFrame` of a table from the specified Google Sheet
+    Returns a `DataFrame` of the table from the specified Google Sheet
 
     Parameters:
-        spreadsheet_id (str): The ID of the Google Sheet (found in the URL)
-            Defaults to the "For KPIs" sheet
-        sheet_name (str): Name of the sheet in the Google Sheet
-            Defaults to "Training"
-        range (str): The range of cells to read (e.g., 'A1:H100')
-            Defaults to "A1:H"
+        spreadsheet_id (str): The ID of the Google Sheet (found in the URL). Defaults to the "For KPIs" sheet
+        sheet_name (str): Name of the sheet in the Google Sheet. Defaults to "Training".
+        range (str): The range of cells to read. Defaults to "A1:H".
 
     Returns:
-        Union[pd.DataFrame, str]: The table on that sheet in DataFrame format,
-            or an error message string if the GSheet could not be read
+        Union[pd.DataFrame, str]: The table on that sheet in DataFrame format, or an error message string
+                                  if the GSheet could not be read.
     """
     try:
         creds = construct_gcp_creds(['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'])
