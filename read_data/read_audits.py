@@ -18,10 +18,8 @@ def create_findings_df(df_audits):
     -  'Audit ID': From the 'ID' column of `df_audits`
     -  'Classification': From the 'findingClassification' value in the 'Findings' JSON
                          string column in `df_audits`
-    -  'Referenced Standards': IDs and titles of STD, GUI, and LEG items in the 'ref'
-                               value in the 'Findings' JSON sreing column of `df_audits`
-    -  'Referenced QMS Documents': IDs and titles of other items in the 'ref' value in the 
-                                   'Findings' JSON string column of `df_audits`
+    -  'Referenced Standards': IDs and titles of CLAUSE items in the 'ref'
+                               value in the 'Findings' JSON string column of `df_audits`
                                    
     Parameters:
         df_audits (pd.DataFrame): DataFrame of AUDIT info. Must contain columns 'ID' and 'Findings'
@@ -36,20 +34,16 @@ def create_findings_df(df_audits):
         findings = json.loads(row['Findings'])
         for finding in findings:
             if len(finding) > 0:
-                stds, docs = [], []
-                for ref in finding['ref'].split(','):
-                    if ref not in mapped_ids:
-                        mapped_ids[ref] = get_item_title(ref)
-                    full_title = ref + ' ' + mapped_ids[ref]
-                    if ref.split('-')[0] in ['GUID', 'LEG', 'STD']:
-                        stds.append(full_title)
-                    else:
-                        docs.append(full_title)
+                clauses = []
+                if 'ref' in finding:
+                    for ref in finding['ref'].split(','):
+                        if ref not in mapped_ids:
+                            mapped_ids[ref] = get_item_title(ref)
+                        clauses.append(mapped_ids[ref])
                 row_dict = {
                     'Audit ID': id_,
                     'Classification': dd_map[finding['findingClassification']],
-                    'Referenced Standards': stds,
-                    'Referenced QMS Documents': docs
+                    'Referenced Clauses': clauses,
                 }
                 row_dicts.append(row_dict)
     df = pd.DataFrame.from_records(row_dicts)
@@ -125,23 +119,22 @@ def read_audit_data() -> Union[pd.DataFrame, str]:
     df_audits.index = df_audits.index.astype(str)
     df_audits = df_audits.drop(columns=['Findings'])
     
-    # Merge to get lists of finding classifications, findings' referenced standards, and findings' referenced QMS documents
+    # Merge to get lists of finding classifications & referenced clauses
     agg_findings = (
         findings_df
         .assign(
             **{
-                'Referenced Standards': findings_df['Referenced Standards'].map(split_and_clean),
-                'Referenced QMS Documents': findings_df['Referenced QMS Documents'].map(split_and_clean)
+                'Referenced Clauses': findings_df['Referenced Clauses'].map(split_and_clean),
             }
         )
         .groupby('Audit ID')
         .agg({
             'Classification': list,
-            'Referenced Standards': lambda s: [item for sublist in s for item in sublist],
-            'Referenced QMS Documents': lambda s: [item for sublist in s for item in sublist],
+            'Referenced Clauses': lambda s: [item for sublist in s for item in sublist]
         })
     )
     df_audits = df_audits.join(agg_findings, how='left')
+    df_audits['Referenced Clauses'] = df_audits['Referenced Clauses'].apply(lambda x: x if isinstance(x, list) else [])
 
     df_audits['# Findings'] = df_audits['Classification'].apply(lambda lst: len(lst) if isinstance(lst, list) else 0)
     for classification in map_dropdown_ids(['dd_ncFindingClass'])['dd_ncFindingClass']:

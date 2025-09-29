@@ -45,7 +45,7 @@ DATE_COLS = {
 # If any columns are lists, the breakdown is "value CONTAINS..."
 BREAKDOWN_COLS = {
     'Adverse Events': ['Manufacturer', 'Device', 'Device Type', 'Event Type'],
-    'Audits': ['Internal/External'],
+    'Audits': ['Internal/External', 'Referenced Clauses'],
     'Benchmarks': [],
     'CAPAs': ['Disposition', 'Effectiveness Verification Status', 'Priority', 'Problem Type', 'Product', 'Type'],
     'Complaints': ['Device', 'Complaint Status', 'Is Device Malfunction', 'Is Specification Failure', 'Is User Error', 'Is Patient Treated', 'Is Investigation Required', 'Is Safety Issue', 'Is Device Malfunction Cause Injury'],
