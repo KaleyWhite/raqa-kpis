@@ -155,7 +155,6 @@ if __name__ == '__main__':
                 PAGE_NAME,
                 total_cts,
                 grouped_data=cts_by_status,
-                bar_kwargs={'stacked': True, 'colormap': create_shifted_cmap('tab10', 4)},
                 min_period=min_period, 
                 min_period_msg=' as Rad did not implement the current complaint process until partway through the ' + interval.lower(), 
                 max_period_msg=' as there may be more ' + ('complaint investigations completed' if col == 'Investigation Completed Date' else 'complaints ' + DATE_COLS['Complaints'][col].lower()) + ' this ' + interval.lower(), 
