@@ -27,11 +27,11 @@ if __name__ == '__main__':
         
         render_toggle()
         interval = render_interval_filter(PAGE_NAME)
-        min_period = df_usage[interval].min()
+        min_period = df_usage['Usage ' + interval].min()
         max_period = ALL_PERIODS[interval][-1]
         start, end = render_period_filter(PAGE_NAME, min_period)
         filtered_df_usage = render_breakdown_fixed(PAGE_NAME, df_usage)
-        ct_data = filtered_df_usage.groupby(interval)['Number Of Runs'].sum().reindex(pd.period_range(start=min_period, end=max_period, freq=interval[0]), fill_value=0)
+        ct_data = filtered_df_usage.groupby('Usage ' + interval)['Number Of Runs'].sum().reindex(pd.period_range(start=min_period, end=max_period, freq=interval[0]), fill_value=0)
 
         to_display = []
         plot = plot_bar(
