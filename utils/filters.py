@@ -84,17 +84,20 @@ def render_toggle(trendline=True, rolling_avg=True) -> None:
 
 def render_interval_filter(page_name: str, default: str = 'Month') -> str:
     """
-    Displays a sidebar radio button for selecting the interval and stores the selection in Settings.
+    Displays a sidebar radio button for selecting the interval and stores the selection in Settings
+    and in Streamlit session state.
+    
+    If no PageState object exists for this page, it is created and stored in Settings.
 
     Parameters:
         page_name (str): Name of the page for which the interval filter applies.
         default (str, optional): Default interval to use if none is set. Defaults to 'Month'.
 
     Returns:
-        str: The selected interval for this page (e.g., 'Month', 'Quarter', 'Year').
+        str: The selected interval for this page (value from constants.INTERVALS).
     """
     settings = get_settings()
-    page = settings.get_page(page_name)
+    page = settings.get_page(page_name)  # Retreive or create page's PageState
 
     interval_key = f'{page_name}_interval'
 
@@ -117,12 +120,25 @@ def render_interval_filter(page_name: str, default: str = 'Month') -> str:
 
 def render_period_filter(
     page_name: str,
-    interval: Optional[str] = None,
     default_start: Optional[pd.Period] = None,
     default_end: Optional[pd.Period] = None
 ) -> Tuple[pd.Period, pd.Period]:
     """
     Displays a period slider for the selected interval and syncs selection to PageState.
+    Also stores the selection in Streamlit session state.
+    
+    Interval is the selected interval radio button value if it can be obtained, otherwise 
+    the page's PageState interval.
+    
+    Parameters:
+        page_name (str): Name of the page to render the period filter for.
+                         Should be a key in constants.SRCS.
+        default_start (Optional[pd.Period]): The selected start period for the slider.
+                                             If None, the earliest period in constants.ALL_PERIODS
+                                             is used.
+        default_end (Optional[pd.Period]): The selected end period for the slider.
+                                           If None, the latest period in constants.ALL_PERIODS
+                                           is used.
 
     Returns the currently selected start and end periods.
     """
@@ -130,7 +146,7 @@ def render_period_filter(
     page = settings.get_page(page_name)
 
     interval_key = f'{page_name}_interval'
-    interval = interval or st.session_state.get(interval_key, page.interval)
+    interval = st.session_state.get(interval_key, page.interval)
     slider_key = f'{page_name}_period_slider_{interval}'  # unique per interval
 
     all_periods = ALL_PERIODS[interval]
@@ -176,22 +192,44 @@ def render_period_filter(
 def render_breakdown_fixed(page_name: str, df: pd.DataFrame) -> pd.DataFrame:
     """
     Renders breakdown selectbox and fixed-category multiselect filters for a page,
-    returning the filtered DataFrame. Works for columns containing lists or strings.
+    returning the filtered DataFrame.
+    
+    Parameters:
+        page_name (str): The page to render the filters for. Should be a value in
+                         constants.SRCS.
+        df (pd.DataFrame): DataFrame to filter based on the user's filter selections
+        
+    Returns:
+        pd.DataFrame: The filtered DataFrame
     """
     settings = get_settings()
     page = settings.get_page(page_name)
 
     def get_unique(col):
-        if len(df) == 0:
+        """
+        Returns unique values in a string or list column. If a list column, the unique individual
+        list elements, not the lists themselves, are returned. Assumes all values are strings or all
+        values are lists of strings.
+        
+        Breakdown category options are any columns in the page's constants.BREAKDOWN_COLS list unless
+        there are more than five unique values (this would make a messy plot!)
+        
+        Parameters:
+            col (str): The DataFrame column whose unique values to return
+            
+        Returns:
+            List[str]: List of unqiue values in the DataFrame column
+        """
+        if len(df) == 0:  # Empty DataFrame -> no values
             return []
         first_val = df[col].iloc[0]
         if isinstance(first_val, list):
             return sorted({item for lst in df[col] for item in lst})
         else:
-            return sorted(df[col].dropna().unique())
+            return sorted(df[col].unique())
 
     # Breakdown categories
-    breakdown_cat_options = [c for c in BREAKDOWN_COLS[page_name] if len(get_unique(c)) <= 5]
+    breakdown_cat_options = [c for c in BREAKDOWN_COLS[page_name] if len(get_unique(c)) <= 5]  # Restrict to columns w/ at most 5 unique values
     breakdown_cat_options.sort()
     breakdown_key = f'{page_name}_breakdown'
 
@@ -208,7 +246,7 @@ def render_breakdown_fixed(page_name: str, df: pd.DataFrame) -> pd.DataFrame:
 
     page.breakdown = st.session_state[breakdown_key]
 
-    # Fixed-category filters
+    # Fixed-category filters. All BREAKDOWN_COLs except the breakdown column
     fixed_categories = [c for c in BREAKDOWN_COLS[page_name] if c != page.breakdown]
     with st.expander('Filters', expanded=True):
         for cat in fixed_categories:
