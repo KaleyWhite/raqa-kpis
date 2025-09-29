@@ -6,6 +6,7 @@ import streamlit as st
 
 
 # For each page, the DataFrame columns that should be date data type
+# DataFrame column : short, human-friendly column name
 DATE_COLS = {
     'Adverse Events': {
         'Date of Event': 'Occurred',
@@ -34,9 +35,14 @@ DATE_COLS = {
         'Due Date': 'Due',
         'Start Date': 'Started'
     },
-    'Model Benchmarks': {}
+    'Model Benchmarks': {},
+    'Training': {},
+    'Usage': {
+        'Usage Date': 'Date'
+    }
 }
 # Options for fixed vs. breakdown columns on each page
+# If any columns are lists, the breakdown is "value CONTAINS..."
 BREAKDOWN_COLS = {
     'Adverse Events': ['Manufacturer', 'Device', 'Device Type', 'Event Type'],
     'Audits': ['Internal/External', 'Audit Type', 'Scope', 'Criteria', 'Auditing Organization', 'Sampled/Reviewed Documents'],
@@ -48,21 +54,7 @@ BREAKDOWN_COLS = {
     'Training': [],
     'Usage': ['Device']
 }
-# Approximate logo color for each Rad product
-PROD_COLORS = {
-    'AutoContour': '#f2b740',
-    'ClearCalc': '#4286f4',
-    'ClearCheck': '#184664',
-    'ChartCheck': '#1f8a4c',
-    'EZFluence': '#960052',
-    'Limbus Contour': '#33314D',
-    'QuickCode': '#27ad60',
-    'RadMachine': '#12502c',
-    'RadMachine-Diagnostic': '#12502c',
-    'RadMonteCarlo': '#0099e1',
-    'RadOrthanc': '#2a82bd',
-    'N/A': '#a0a0a0'  # E.g., website-related
-}
+
 # Data source descriptions to display in expander on each page
 SRCS = OrderedDict([
     (
@@ -129,10 +121,10 @@ INTERVALS = ['Month', 'Quarter', 'Year']
 
 def compute_all_periods():
     """
-    Compute all available reporting periods since Rad incorporation.
+    Computes all available reporting periods since Rad incorporation.
 
     The function generates period ranges for months, quarters, and years,
-    starting from the RAD incorporation date (`RAD_DATE`) up to the current date.
+    starting from the incorporation date (`RAD_DATE`) up to the current date.
 
     Returns:
         dict[str, pd.PeriodIndex]: A dictionary where keys are values from `INTERVALS`, and values are corresponding PeriodIndex objects covering the
@@ -150,7 +142,6 @@ ALL_PERIODS = compute_all_periods()
 
 MATRIX_HEADERS = {
     'authorization': 'Token ' + st.secrets['matrix']['token'], 
-    #'Content-Type': 'application/json',
     'accept': 'application/json'
 }
 MATRIX_URL = 'https://radformation.matrixreq.com'
