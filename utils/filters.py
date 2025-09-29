@@ -53,6 +53,15 @@ def get_options_sorting_key(cat: str) -> Callable[[str], object]:
 
 
 def render_toggle(trendline=True, rolling_avg=True) -> None:
+    """
+    Renders "Data" (always), "Trendline" (optionally), and/or "Rolling average" (optionally) toggles in the Streamlit sidebar.
+    
+    Meant to be used to show/hide data, trendlines, and/or rolling average on plots.
+    
+    Parameters:
+        trendline (bool): If True, render a toggle "Trendlines". Defaults to True.
+        rolling_avg (bool): If True, render a toggle "Rolling average". Defaults to True.
+    """
     with st.sidebar:
         st.toggle(
             'Data',
