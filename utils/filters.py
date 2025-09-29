@@ -221,9 +221,9 @@ def render_breakdown_fixed(page_name: str, df: pd.DataFrame) -> pd.DataFrame:
             return []
         first_val = df[col].iloc[0]
         if isinstance(first_val, list):
-            return sorted({item for lst in df[col] for item in lst})
+            return sorted({item for lst in df[col] for item in lst}, key=get_options_sorting_key(col))
         else:
-            return sorted(df[col].unique())
+            return sorted(df[col].unique(), key=get_options_sorting_key(col))
 
     # Breakdown categories
     breakdown_cat_options = [
