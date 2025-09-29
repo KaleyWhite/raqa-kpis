@@ -1,6 +1,5 @@
 import random
-from typing import Dict, List, Optional, Sequence, Tuple
-import warnings
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
@@ -13,21 +12,20 @@ from utils.constants import ALL_PERIODS, DATE_COLS, SRCS
 from utils.settings import get_settings
 
 
-def compute_bin_width(data_series_list: List[pd.Series]) -> float:
+def compute_bin_width(data_list: List[Iterable[Union[int, float]]]) -> float:
     """
-    Computes a common histogram bin width using the Freedman-Diaconis rule for a list of numeric series.
+    Computes a common histogram bin width using the Freedman-Diaconis rule for a list of numeric sequences.
 
-    Parameters
-    ----------
-    data_series_list (List[pd.Series]): List of pandas Series containing numeric data.
+    Parameters:
+        data_list (List[Iterable[Union[int, float]]]): List of sequences (lists, arrays, or Series) containing numeric data.
 
-    Returns
-    -------
-    float:
-        Bin width to use across all series. Returns at least 1 as a fallback if data is insufficient.
+    Returns:
+        float: Bin width to use across all sequences. Returns at least 1 as a fallback if data is insufficient.
     """
-    # Concatenate all series to compute global IQR
-    all_data = np.concatenate([s.dropna().to_numpy() for s in data_series_list])
+    # Flatten and convert all data to a 1D numpy array
+    all_data = np.concatenate([np.array(seq).ravel() for seq in data_list if seq is not None])
+    all_data = all_data[~np.isnan(all_data)]  # remove NaNs
+
     if len(all_data) < 2:
         return 1  # fallback if not enough data
 
@@ -39,11 +37,11 @@ def compute_bin_width(data_series_list: List[pd.Series]) -> float:
 
 def compute_cts(src: str, filtered_df: pd.DataFrame) -> Dict[str, Tuple[pd.Series, pd.DataFrame]]:
     """
-    Computes counts of records for a given time interval, optionally broken down by a category.
+    Computes counts of records for a given time interval, both total and broken down by a category.
 
-    For the specified interval (e.g., 'Month', 'Quarter', 'Year') and each date column in DATE_COLS[src]:
+    For the specified interval ('Month', 'Quarter', or 'Year') and each date column in DATE_COLS[src]:
         - Computes total counts per period.
-        - Computes counts per period broken down by the specified st.session_state[breakdown_category].
+        - Computes counts per period broken down by the specified page's breakdown category.
 
     Parameters:
         src (str): Key identifying the source dataset in DATE_COLS.
@@ -54,11 +52,12 @@ def compute_cts(src: str, filtered_df: pd.DataFrame) -> Dict[str, Tuple[pd.Serie
             Dictionary keyed by date column, where each value is a tuple:
             - total_counts (pd.Series): Total counts per period (index = period, values = count).
             - counts_by_category (pd.DataFrame): Counts per period broken down by the breakdown category
-              (index = period, columns = unique values of the breakdown category).
+              (index = period, columns = unique values of the breakdown category). If there is no breakdown
+              category, counts_by_category = total_counts.
 
     Example:
         >>> ticket_cts = compute_cts('Development Tickets', filtered_ticket_df)
-        >>> ticket_cts['Date Created'][0]  # Total tickets created each month
+        >>> ticket_cts['Date Created'][0]  # Total tickets created each month (assuming the page's `interval` is 'Month')
         2024-01    2
         2024-02    5
         2024-03    3
@@ -119,11 +118,13 @@ def compute_trendline(
     Returns:
         np.ndarray: Predicted trendline values including any before/after extrapolation and clipping.
     """
+    # Select non-NA values
     period_nos = np.arange(len(y_values))
     mask = ~pd.isna(y_values)
     x, y = period_nos[mask], np.array(y_values)[mask]
 
     def loss(params):
+        """Computes OLS loss"""
         a, b = params
         y_pred = a * x + b
         return np.mean((y - y_pred) ** 2)
@@ -189,9 +190,6 @@ def init_page(pg_title: str) -> None:
 
     Parameters:
         pg_title (str): Title to display for the Streamlit page.
-
-    Returns:
-        None
     """
     if 'page_configured' not in st.session_state:
         try:
@@ -212,15 +210,12 @@ def show_data_srcs(pg_title: str = 'RA/QA KPIs', error_msg: Optional[str] = None
     Parameters:
         pg_title (str, optional): 
             The title of the page whose data sources should be displayed. 
-            Defaults to 'RA/QA KPIs'. Uses a global SRCS mapping to 
+            Defaults to 'RA/QA KPIs'. Uses the global constants.SRCS mapping to 
             resolve page-specific data source information.
         error_msg (Optional[str], optional): 
             If provided, overrides the default ℹ️ icon with ❌, expands 
             the expander by default, and appends the error message in 
             highlighted red text below the data sources. Defaults to None.
-
-    Returns:
-        None
     """
     icon = '❌' if error_msg else 'ℹ️'
     with st.expander(icon + ' Data Sources', expanded=bool(error_msg)):
