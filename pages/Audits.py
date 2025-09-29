@@ -72,7 +72,7 @@ if __name__ == '__main__':
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_audits['Start ' + interval].min()
         min_period_str = period_str(min_period, interval)
-        start, end = render_period_filter(PAGE_NAME, interval, min_period)
+        start, end = render_period_filter(PAGE_NAME, min_period)
         filtered_df_audits = render_breakdown_fixed(PAGE_NAME, df_audits)
         
         audit_cts = compute_cts(PAGE_NAME, filtered_df_audits)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
             y_label='# Audits',
             y_integer=True,
             missing_as_zero=True,
-            no_data_msg='No audits matching your filters were started ' + period_string + '.'
+            no_data_msg='No audits matching your filters were completed ' + period_string + '.'
         )
         to_display.append(plot[0])
         plot = plot_bar(

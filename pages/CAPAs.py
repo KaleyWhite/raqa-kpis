@@ -313,7 +313,7 @@ if __name__ == '__main__':
         render_toggle()
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_capas[list(DATE_COLS['CAPAs'])].min().min().to_period(interval[0])
-        start, end = render_period_filter(PAGE_NAME, interval, min_period)
+        start, end = render_period_filter(PAGE_NAME, min_period)
         
         filtered_df_capas = render_breakdown_fixed('CAPAs', df_capas)
     

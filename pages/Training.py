@@ -192,7 +192,7 @@ if __name__ == '__main__':
         interval = render_interval_filter(PAGE_NAME)
         training_commitment_percentage = compute_training_commitment()
         min_period = df_training_mo[interval].min()
-        start, end = render_period_filter(PAGE_NAME, interval, min_period)
+        start, end = render_period_filter(PAGE_NAME, min_period)
 
         to_display = []
         period_string = 'during ' + period_str(start, interval) if start == end else 'between ' + period_str(start, interval) + ' and ' + period_str(end, interval)

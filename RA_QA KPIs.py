@@ -76,7 +76,7 @@ if __name__ == '__main__':
     show_data_srcs(error_msg=commitment if isinstance(commitment, str) else None)
     if not isinstance(commitment, str):
         commitment, min_period, min_period_category = commitment
-        start, end = render_period_filter(PAGE_NAME, interval, default_start=min_period)
+        start, end = render_period_filter(PAGE_NAME, default_start=min_period)
         min_period_msg = {
             'Audits': f' as there are no records of audits before that {interval.lower()}',
             'CAPAs': f' as Rad has no records of CAPAs before that {interval.lower()}',

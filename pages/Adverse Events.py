@@ -83,7 +83,7 @@ if __name__ == '__main__':
         
         render_toggle()
         interval = render_interval_filter(PAGE_NAME)
-        start, end = render_period_filter(PAGE_NAME, interval)
+        start, end = render_period_filter(PAGE_NAME)
         filtered_df_aes = render_breakdown_fixed(PAGE_NAME, df_aes)
        
         all_ae_cts = compute_cts(PAGE_NAME, filtered_df_aes)
