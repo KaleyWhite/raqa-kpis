@@ -61,12 +61,13 @@ def plot_ae_cts(ae_cts: dict, rad: bool = False) -> Optional[Tuple[matplotlib.fi
     else:
         kwargs.update({
             'title': 'Competitor Adverse Events',
-            'no_data_msg': 'No AEs about competitor products, matching your filters, were received by the FDA ' + period_string + '.'
+            'no_data_msg': 'No AEs about competitor products, matching your filters, were received by the FDA ' + period_string + '.',
         })
 
     plot = plot_bar(
         PAGE_NAME,
         ae_cts['Date Received'][0],
+        release_dates=rad,
         **kwargs
     )
 
@@ -75,6 +76,8 @@ def plot_ae_cts(ae_cts: dict, rad: bool = False) -> Optional[Tuple[matplotlib.fi
 
 if __name__ == '__main__':
     st.title(PAGE_NAME)
+    from read_data.salesforce import read_release_dates
+    read_release_dates()
     df_aes = read_ae_data()
     show_data_srcs(PAGE_NAME, df_aes if isinstance(df_aes, str) else None)
     if not isinstance(df_aes, str):

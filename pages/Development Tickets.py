@@ -38,7 +38,7 @@ if __name__ == '__main__':
                 PAGE_NAME,
                 total_cts,
                 grouped_data=cts_by_selection,
-                bar_kwargs={'stacked': True, 'colormap': 'tab10'},
+                release_dates=short == 'Created',
                 min_period=min_period,
                 min_period_msg=min_period_msg,
                 max_period_msg=' as there may be more tickets ' + short.lower() + ' this ' + interval.lower(), 

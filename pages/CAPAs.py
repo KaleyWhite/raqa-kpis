@@ -310,7 +310,7 @@ if __name__ == '__main__':
     if not isinstance(df_capas, str):       
         to_display = []
         
-        render_toggle()
+        render_toggle(release_dates=False)
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_capas[list(DATE_COLS['CAPAs'])].min().min().to_period(interval[0])
         start, end = render_period_filter(PAGE_NAME, min_period)
@@ -327,7 +327,6 @@ if __name__ == '__main__':
                 PAGE_NAME,
                 total_cts, 
                 grouped_data=cts_by_selection, 
-                bar_kwargs={'stacked': True, 'colormap': 'tab10'},
                 min_period=min_period,
                 min_period_msg=min_period_msg,
                 max_period_msg=' as there may be more CAPAs ' + short.lower() + ' this ' + interval.lower(), 

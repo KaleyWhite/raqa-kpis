@@ -115,6 +115,34 @@ SRCS = OrderedDict([
     )
 ])
 RAD_COLOR = '#3498db'  # Rad logo color
+PROD_ABBRVS = {
+    'AutoContour': 'AC',
+    'ClearCalc': 'CA',
+    'ClearCheck': 'CC',
+    'ChartCheck': 'CH',
+    'EZFluence': 'EZF',
+    'Limbus Contour': 'LC',
+    'QuickCode': 'QC',
+    'RadMachine': 'RM',
+    'RadMachine-Diagnostic': 'RMD',
+    'RadMonteCarlo': 'RMC',
+    'RadOrthanc': 'RO',
+}
+# Approximate logo color for each Rad product
+PROD_COLORS = {
+    'AutoContour': '#f2b740',
+    'ClearCalc': '#4286f4',
+    'ClearCheck': '#184664',
+    'ChartCheck': '#1f8a4c',
+    'EZFluence': '#960052',
+    'Limbus Contour': '#33314D',
+    'QuickCode': '#27ad60',
+    'RadMachine': '#12502c',
+    'RadMachine-Diagnostic': '#12502c',
+    'RadMonteCarlo': '#0099e1',
+    'RadOrthanc': '#2a82bd',
+    'N/A': '#a0a0a0'  # E.g., website-related
+}
 RAD_DATE = '2016-10-26'  # Rad incorporation date
 INTERVALS = ['Month', 'Quarter', 'Year']
 

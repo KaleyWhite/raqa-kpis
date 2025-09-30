@@ -70,7 +70,7 @@ def compute_commitment(interval='Month'):
 if __name__ == '__main__':
     st.title('RA/QA KPIs')
     st.markdown('**Note**: This page uses dummy training data! REAL QMS training stats will be provided once we roll out QMS training in Matrix!')
-    render_toggle()
+    render_toggle(release_dates=False)
     interval = render_interval_filter(PAGE_NAME)
     commitment = compute_commitment(interval)
     show_data_srcs(error_msg=commitment if isinstance(commitment, str) else None)

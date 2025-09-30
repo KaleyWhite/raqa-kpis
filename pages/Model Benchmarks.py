@@ -20,6 +20,7 @@ PAGE_NAME = os.path.splitext(os.path.basename(__file__))[0]
 if __name__ == '__main__':
     st.title(PAGE_NAME)
     df_benchmarks = read_benchmark_data()
+    st.write(df_benchmarks)
     show_data_srcs(PAGE_NAME, df_benchmarks if isinstance(df_benchmarks, str) else None)
     if not isinstance(df_benchmarks, str):
         filtered_df_benchmarks = render_breakdown_fixed(PAGE_NAME, df_benchmarks)

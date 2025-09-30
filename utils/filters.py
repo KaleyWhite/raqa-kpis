@@ -52,15 +52,18 @@ def get_options_sorting_key(cat: str) -> Callable[[str], object]:
     return default_key
 
 
-def render_toggle(trendline=True, rolling_avg=True) -> None:
+def render_toggle(trendline=True, rolling_avg=True, release_dates=True) -> None:
     """
-    Renders "Data" (always), "Trendline" (optionally), and/or "Rolling average" (optionally) toggles in the Streamlit sidebar.
+    Renders "Data" (always), "Trendline" (optionally), "Rolling average" (optionally), 
+    and/or "Release Dates" (optionally) toggles in the Streamlit sidebar.
     
-    Meant to be used to show/hide data, trendlines, and/or rolling average on plots.
+    Meant to be used to show/hide data, trendlines, rolling average, and/or release dates
+    on plots.
     
     Parameters:
         trendline (bool): If True, render a toggle "Trendlines". Defaults to True.
         rolling_avg (bool): If True, render a toggle "Rolling average". Defaults to True.
+        release_dates (bool): If True, render a toggle "Release dates". Defaults to True.
     """
     with st.sidebar:
         st.toggle(
@@ -79,6 +82,12 @@ def render_toggle(trendline=True, rolling_avg=True) -> None:
                 'Rolling average',
                 value=True,
                 key='rolling_avg'
+            )
+        if release_dates:
+            st.toggle(
+                'Release dates',
+                value=False,
+                key='release_dates'
             )
 
 
@@ -140,7 +149,8 @@ def render_period_filter(
                                            If None, the latest period in constants.ALL_PERIODS
                                            is used.
 
-    Returns the currently selected start and end periods.
+    Returns:
+        Tuple[pd.Period, pd.Period]: A tuple containing the currently selected start and end periods.
     """
     settings = get_settings()
     page = settings.get_page(page_name)

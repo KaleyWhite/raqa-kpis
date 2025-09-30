@@ -5,12 +5,67 @@ import pandas as pd
 from simple_salesforce import Salesforce
 import streamlit as st
 
+from read_data import correct_date_dtype
+
 
 try:
-    sf = Salesforce( **st.secrets['salesforce'])
+    sf = Salesforce(**st.secrets['salesforce'])
 except Exception as e:
     st.write(e)
     sf = None
+    
+
+def human_friendly(key: str) -> str:
+    """
+    Converts a Salesforce API-style field or object name into a more human-readable form.
+
+    Transformations applied:
+    1. Removes the Salesforce custom field suffix '__c'.
+    2. Replaces underscores with spaces.
+    3. Adds spaces between camelCase words.
+
+    Parameters:
+        key (str): The original Salesforce field or object API name (e.g., 'AccountOwner__c', 
+                   'LastModifiedById').
+
+    Returns:
+        str: A human-friendly version of the name suitable for labels or display 
+             (e.g., 'Account Owner', 'Last Modified By Id').
+    """
+    no_custom_suffix = re.sub(r'__c$', '', key)
+    no_underscores = re.sub(r'_+', ' ', no_custom_suffix)
+    no_camel_case = re.sub(r'([a-z])([A-Z])', r'\1 \2', no_underscores)
+    return no_camel_case
+    
+    
+@st.cache_data
+def read_release_dates() -> Optional[pd.DataFrame]:
+    """
+    Reads product release dates from the Salesforce Device_Regulatory_Information__c object.
+
+    Queries Salesforce for the Product, Version, and Release Date fields, converts them into a
+    pandas DataFrame, and ensures date columns have the correct dtype.
+
+    Returns:
+        Optional[pd.DataFrame]: DataFrame with columns:
+            - 'Product' (str): Product name
+            - 'Version' (str): Product version
+            - 'Release Date' (datetime-like): Release date
+        Returns None if the Salesforce client (`sf`) is not available.
+    """
+    if sf is None:
+        return None
+
+    cols = ['Product__c', 'Version__c', 'Release_Date__c']
+    records: List[dict] = []
+    for record in sf.query_all_iter(f'SELECT {",".join(cols)} FROM Device_Regulatory_Information__c'):
+        record_dict = {human_friendly(col): record[col] for col in cols}
+        records.append(record_dict)
+        
+    df = pd.DataFrame.from_records(records)
+    df = correct_date_dtype(df)
+
+    return df
     
 
 def get_sf_records(obj: str, flds: Optional[List[str]] = None) -> Optional[pd.DataFrame]:
@@ -36,12 +91,6 @@ def get_sf_records(obj: str, flds: Optional[List[str]] = None) -> Optional[pd.Da
         Optional[pd.DataFrame]: A `DataFrame` containing the queried records with human-readable column names,
         or `None` if Salesforce connection is unavailable.
     """
-    def human_friendly(key: str) -> str:
-        no_custom_suffix = re.sub(r'__c$', r'', key)
-        no_underscores = re.sub(r'_+', r' ', no_custom_suffix)
-        no_camel_case = re.sub(r'([a-z])([A-Z])', r'\g<1> \g<2>', no_underscores)
-        return no_camel_case
-
     if sf is None:
         return None
 

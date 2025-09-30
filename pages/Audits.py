@@ -68,7 +68,7 @@ if __name__ == '__main__':
         settings = get_settings()
         page = settings.get_page(PAGE_NAME)
         
-        render_toggle()
+        render_toggle(release_dates=False)
         interval = render_interval_filter(PAGE_NAME)
         min_period = df_audits['Start ' + interval].min()
         min_period_str = period_str(min_period, interval)

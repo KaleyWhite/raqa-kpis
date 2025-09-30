@@ -188,7 +188,7 @@ if __name__ == '__main__':
     st.markdown('**Note**: This is dummy data! REAL QMS training stats will be provided once we roll out QMS training in Matrix!')
     show_data_srcs('Training', df_training_mo if isinstance(df_training_mo, str) else None)
     if not isinstance(df_training_mo, str):
-        render_toggle()
+        render_toggle(release_dates=False)
         interval = render_interval_filter(PAGE_NAME)
         training_commitment_percentage = compute_training_commitment()
         min_period = df_training_mo[interval].min()

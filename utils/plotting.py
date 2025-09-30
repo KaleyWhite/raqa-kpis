@@ -10,8 +10,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 import textwrap
 
+from read_data.salesforce import read_release_dates
 from utils import compute_trendline
-from utils.constants import ALL_PERIODS, RAD_COLOR
+from utils.constants import ALL_PERIODS, PROD_ABBRVS, PROD_COLORS, RAD_COLOR
 from utils.settings import get_settings
 from utils.text_fmt import items_in_a_series, period_str
 
@@ -74,6 +75,7 @@ def plot_bar(
     grouped_data: Optional[pd.DataFrame] = None,
     trendline: bool = True,
     rolling_avg: bool = True,
+    release_dates: bool = False,
     **kwargs: Any
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
@@ -101,6 +103,9 @@ def plot_bar(
         rolling_avg (bool): Whether to overlay a rolling average line. Defaults to True. For rolling
                             average to be shown, `rolling_avg` must be true AND the rolling-average toggle
                             must be on.
+        release_dates (bool): Whether to plot vertical lines at product release dates. Defaults to False. 
+                              For release dates to be shown, `release_dates` must be true AND the release-dates
+                              toggle must be on.
         **kwargs: Additional configuration options:
             - start (Period): Start of plotting range. If not provided, uses the page's PageState's start.
             - end (Period): End of plotting range. If not provided, uses the page's PageState's end.
@@ -155,6 +160,7 @@ def plot_bar(
     show_data = 'data' not in st.session_state or st.session_state['data']
     show_trendline = trendline and ('trendline' not in st.session_state or st.session_state['trendline'])
     show_rolling_avg = rolling_avg and ('rolling_avg' not in st.session_state or st.session_state['rolling_avg'])
+    show_release_dates = release_dates and ('release_dates' not in st.session_state or st.session_state['release_dates'])
     if not show_data and not show_trendline and not show_rolling_avg:
         display_no_data_msg('Toggle on in the sidebar to plot!', fig, ax)
         return fig, ax
@@ -228,6 +234,23 @@ def plot_bar(
             ax.axhline(y=tol_lower, **hline_args)
         if tol_upper:
             ax.axhline(y=tol_upper, **hline_args)
+            
+    # Release dates
+    if show_release_dates:
+        release_data = read_release_dates()
+        filtered_release_data = release_data.copy()
+        try:
+            devices = next(val for key, val in page.filters.items() if 'device' in key.lower())
+            filtered_release_data = filtered_release_data[filtered_release_data['Product'].isin(devices)]
+        except StopIteration:
+            pass
+        for _, row in filtered_release_data.iterrows():
+            if not pd.isna(row['Release Date']):
+                release_period = period_str(row['Release Date'])
+                if release_period in x_labels:
+                    xpos = x_labels.index(release_period)
+                    ax.axvline(xpos, ymin=0, ymax=y_lim, color=PROD_COLORS[row['Product']])
+                    ax.text(xpos, y_lim * 0.5, f'{PROD_ABBRVS[row["Product"]]} {row["Version"]}', color=PROD_COLORS[row['Product']], rotation=90, verticalalignment='center', horizontalalignment='right')
      
     # Markers for missing data       
     if 'label_missing' in kwargs and bar_data[start:end].isna().any():
