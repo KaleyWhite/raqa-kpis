@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from read_data import add_period_cols, correct_date_dtype
+from read_data.mixpanel import read_mp_usage
 from read_data.salesforce import get_sf_records, sf
 
 
@@ -56,6 +57,10 @@ def read_usage_data() -> Union[pd.DataFrame, str]:
     
     # Remove Radformation data
     df_usage = df_usage[~df_usage['Account'].str.contains('test|radformation', case=False, na=False)]
+    
+    # Retrieve LC data
+    mp_usage = read_mp_usage()
+    df_usage = pd.concat([df_usage, mp_usage])
 
     add_period_cols(df_usage)
 

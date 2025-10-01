@@ -37,6 +37,7 @@ if __name__ == '__main__':
         plot = plot_bar(
             PAGE_NAME,
             ct_data, 
+            release_dates=True,
             interval=interval,
             start=start,
             end=end,

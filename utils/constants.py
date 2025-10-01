@@ -165,7 +165,6 @@ def compute_all_periods():
     return all_periods
 ALL_PERIODS = compute_all_periods()
 
-
 # Matrix
 
 MATRIX_HEADERS = {
@@ -174,3 +173,7 @@ MATRIX_HEADERS = {
 }
 MATRIX_URL = 'https://radformation.matrixreq.com'
 QMS_URL = MATRIX_URL + '/rest/1/QMS'
+
+# Mixpanel
+
+JQL_URL = 'https://mixpanel.com/api/2.0/jql'
